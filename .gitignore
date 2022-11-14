@@ -1,0 +1,30 @@
+############# File extensions ############# 
+#### docs
+*doc
+*docx
+*pdf
+*txt
+#### images
+*png
+*svg
+*bmp
+*jpg
+*jpeg
+*TIFF
+#### MATLAB
+*fig
+*mat
+#### FEBIO
+*feb
+*xplt
+#### etc.
+*zip
+*html
+*xml
+*tmp
+############# Specific files ############# 
+
+############# Directories ############# 
+
+!*/yamlmatlab-master/*/** # don't ignore files from */yamlmatlab-master/...
+
