@@ -25,6 +25,9 @@
 ############# Specific files ############# 
 
 ############# Directories ############# 
+!**/logo-small.svg
+############# Directories ############# 
+# don't ignore files from **/yamlmatlab-master/...
+!**/yamlmatlab-master/**/* 
 
-!*/yamlmatlab-master/*/** # don't ignore files from */yamlmatlab-master/...
 
