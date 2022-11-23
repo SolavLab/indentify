@@ -2,7 +2,6 @@ function [obj_val] = objFun(test,objectiveStruct)
     %% Globals
     global variable_tracking_struct 
     Fopt = [];
-    
     %% get intenter's center of mass (not used currently)
     indenter_center_of_mass_sim = [NaN NaN NaN];
     if isfield(objectiveStruct,'febio_spec')
@@ -11,8 +10,6 @@ function [obj_val] = objFun(test,objectiveStruct)
     if isfield(test,'MeshGeometry')
         indenter_center_of_mass_sim = test.MeshGeometry.Indenter.center_of_mass;
     end
-    
-    
     %% baseline ("experimental") data
     disp_exp = objectiveStruct.disp_exp; % (Nnodes)x3x(Nt)
     pos_exp = objectiveStruct.pos_exp; % (Nnodes)x3x(Nt)

@@ -1,8 +1,11 @@
-%% run_mesh_convergence_benchmark funciton
+%% NOTICE: the following code is an adaptation of DEMO_febio_0006_sphere_indentation.m
+%Copyright (C) 2006-2021 Kevin Mattheus Moerman and the GIBBON contributors,
+%taken from the GIBBON Toolbox (www.gibboncode.org) under the license
+%provided therein:
+%(https://github.com/gibbonCode/GIBBON/blob/master/LICENSE).
+%% Setup axyisymmetric indentation FE model and run with FEBio.
 function [febio_spec,febioAnalysis, runFlag,savePath,MeshGeometry] = runIndentation(my_param,modelName,savePath)
-    run_optimization = 0; % flag for carrying an identification study with synthetic test data (iFEA).
     FigStruct.Visible = 'off';
-    output_all_nodes = 1;
     Specimen = my_param.Specimen;
     Indenter = my_param.Indenter;
     animationFlag=0;
@@ -202,7 +205,7 @@ function [febio_spec,febioAnalysis, runFlag,savePath,MeshGeometry] = runIndentat
         febio_spec.Step.step{1}.ATTR.id=1;
         %% Material section
         switch my_param.mat_type
-            case 'Ogden_1st' % Ogden 1st order
+            case 'OG' % Ogden 1st order
                 k_tru=0.5*p1_tru*k_factor_tru; %Bulk modulus = (initial shear modulus)x(k_factor)
                 materialName1='Material1';
                 febio_spec.Material.material{1}.ATTR.name=materialName1;
@@ -211,7 +214,7 @@ function [febio_spec,febioAnalysis, runFlag,savePath,MeshGeometry] = runIndentat
                 febio_spec.Material.material{1}.c1=p1_tru;
                 febio_spec.Material.material{1}.m1=p2_tru;
                 febio_spec.Material.material{1}.k=k_tru;
-            case 'Ogden_symmetric' % Ogden 2nd order (symmetric)
+            case 'OM' % Ogden 2nd order (symmetric)
                 k_tru=p1_tru*k_factor_tru; %Bulk modulus = (initial shear modulus)x(k_factor)
                 materialName1='Material1';
                 febio_spec.Material.material{1}.ATTR.name=materialName1;
@@ -222,7 +225,7 @@ function [febio_spec,febioAnalysis, runFlag,savePath,MeshGeometry] = runIndentat
                 febio_spec.Material.material{1}.c2=p1_tru;
                 febio_spec.Material.material{1}.m2=-p2_tru;
                 febio_spec.Material.material{1}.k=k_tru;            
-            case 'Mooney-Rivlin' % Mooney Rivlin         
+            case 'MR' % Mooney Rivlin         
                 materialName1='Material1';
                 k_tru=2*(p1_tru+p2_tru)*k_factor_tru; %Bulk modulus = (initial shear modulus)x(k_factor)
                 febio_spec.Material.material{1}.ATTR.name=materialName1;
@@ -240,14 +243,14 @@ function [febio_spec,febioAnalysis, runFlag,savePath,MeshGeometry] = runIndentat
                 febio_spec.Material.material{1}.c1=p1_tru;
                 febio_spec.Material.material{1}.c2=0;
                 febio_spec.Material.material{1}.k=(4/3)*p1_tru*(1-p2_tru)/(1-2*p2_tru);
-            case 'Neo-Hookean' % Neo-Hookean 
+            case 'Neo-Hookean' % Neo-Hookean (Lamme) 
                     materialName1='Material1';
                     febio_spec.Material.material{1}.ATTR.name=materialName1;
                     febio_spec.Material.material{1}.ATTR.type='neo-Hookean';
                     febio_spec.Material.material{1}.ATTR.id=1;
                     febio_spec.Material.material{1}.v=p2_tru;
                     febio_spec.Material.material{1}.E=2*p1_tru*(1+febio_spec.Material.material{1}.v);
-            case 'Neo-Hookean(Young)' % Neo-Hookean (Young)
+            case 'NH' % Neo-Hookean (Young)
                     materialName1='Material1';
                     febio_spec.Material.material{1}.ATTR.name=materialName1;
                     febio_spec.Material.material{1}.ATTR.type='neo-Hookean';

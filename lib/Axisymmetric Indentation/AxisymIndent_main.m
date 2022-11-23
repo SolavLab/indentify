@@ -2,23 +2,24 @@
 close all
 clear all
 clc
-%% Material Parameters
-mat_type = 'Ogden_1st'; % 'Ogden_symmetric','Mooney-Rivlin', 'Neo-Hookean(Young)'
-P1 = [51]*1e-3; % Range of first material parameter (scalar/vector)
-P2 = [19]; % Range of second material parameter (scalar/vector)
-k_factor = 1000; % Range of bulk material parameter multiplier (scalar/vector)
-%% Specimen Mesh parameters
-R_sp = 60; % specimen radius (mm)
-H_sp = 60; % specimen height (mm)
-mesh_refinement_factor = 2; % Mesh refinement factor, N (scalar/vector)
-ALPHA = 2; % angle of sector
-R_bias = 0.5; % bias factor in radial direction (R_bias=(beta_r-1) from paper)
-H_bias = 0.5; % bias factor in axial direction (H_bias=(beta_r-1) from paper)
-elementType = 'hex20'; % 'hex8','hex20'
-benchmark_flag = 0; % 0 - axisymmetric model, 1 - full 3D model.
-ignore_formula = 1; % 0 - special formula for element size bias, 1 - same as in paper
-%% Indenter Parameters
-R_ind = 15; % indenter radius (mm)
+%% USER-DEFINED SETTINGS
+    % Material Parameters
+    mat_type = 'OG'; % 'OG','OM','MR','NH'
+    P1 = [1:5:51]*1e-3; % Range of first material parameter (scalar/vector)
+    P2 = [1:3:37]; % Range of second material parameter (scalar/vector)
+    k_factor = 1000; % Range of bulk material parameter multiplier (scalar/vector)
+    % Specimen parameters
+    R_sp = 60; % specimen radius (mm)
+    H_sp = 60; % specimen height (mm)
+    mesh_refinement_factor = 2; % Mesh refinement factor, N (scalar/vector)
+    ALPHA = 2; % angle of sector
+    R_bias = 0.5; % bias factor in radial direction (R_bias=(beta_r-1) from paper)
+    H_bias = 0.5; % bias factor in axial direction (H_bias=(beta_r-1) from paper)
+    elementType = 'hex20'; % 'hex8','hex20'
+    benchmark_flag = 0; % 0 - axisymmetric model, 1 - full 3D model.
+    ignore_formula = 1; % 0 - special formula for element size bias, 1 - same as in paper
+    % Indenter Parameters
+    R_ind = 15; % indenter radius (mm)
 %% Control Parameters
 runMode = 'external'; % FEBio run mode - 'external', 'internal'
 % select analysis type (currently only indentation is implemented)
@@ -26,11 +27,9 @@ analysis_type = questdlg('Analysis type','Analysis type','Indentation','Tension'
 if isempty(analysis_type)
     error('analysis_type was left unassigned')
 end
+% Retrieve/Assign default run path for indetify's calculations
+default_running_folder = getDefaultRunPath(); 
 % Specify runPath (directory for simulation files and subfolders)
-default_running_folder = 'C:\FEBio_runs\axisymmetry\mesh_convergence_benchmark'; % edit for convience
-if ~exist(default_running_folder)
-    default_running_folder = getenv('DEFAULT_RUNNING_FOLDER');
-end
 runPath = uigetdir(default_running_folder,'Select Running Folder');
 if runPath == 0
     error('runPath was left unassigned')
@@ -153,14 +152,15 @@ winopen(runPath);
 % Load and adjust test data. This adds the output data (FEBio logfile data) from
 % each job and unites all test data to a single structure 'test' which is saved in runPath
 % as 'test.mat'
-load_arrange_flag = questdlg('Automatically load and arragne data structure?','Load and Arragne Data Structure','yes','no', 'yes');
-if strcmp(load_arrange_flag, 'yes')
+%
+% load_arrange_flag = questdlg('Automatically load and arragne data structure?','Load and Arragne Data Structure','yes','no', 'yes');
+% if strcmp(load_arrange_flag, 'yes')
     % Load run_log file (metadata of all jobs)
     test = RunLog2Test(run_log); %this adds aditional field to test (warning: may remove data);
     file_name = fullfile(runPath,'test.mat');
     save(file_name,'test','-v7.3');
     fprintf('******************\n%s\nsuccessfully saved\n******************\n',file_name);
-end
+% end
 toc(full_time) % print elapsed time to command window
 %% 
 % _*indentify footer text*_ 

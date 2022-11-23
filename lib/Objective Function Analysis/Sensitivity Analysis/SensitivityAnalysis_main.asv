@@ -6,7 +6,6 @@ clc
 %% Post-processing controls  <<<<< User-specified
 colormap_data_field ='Fval_contour';%'Fval_surface'; %'Fval_contour','grad_mag_contour','scatter3Fval'
 normalize_param = 1; % flag for normalizing the material parameters by baseline values
-eta_arr = [0,0.25,0.5,0.75,1]; % values of eta to include in post-processing
 F_pos_version = 2;   % nodal wieghts calculation mode (outdated)
 %% Specify analysis folders, baseline parameters and material model names  <<<<< User-specified
 dir_name_carray = {}; % dir_name_carray{k} - runPath directory of k'th analysis
@@ -17,14 +16,13 @@ mat_type_carray = {}; % mat_type_carray{k} - name of material model used in the 
 % dir_name_carray{end+1} = runPath; exp_params_carray{end+1} = [p1*,p2*,k_factor*(optional)]; mat_type_carray{end+1} = material-model-name;
 
 %%%%%% Ogden-Moerman
-% dir_name_carray{end+1} = 'D:\axysimmetric_objFun\HEX20_meshf_2\attempt8'; exp_params_carray{end+1} = [26e-3,19,26]; mat_type_carray{end+1} = 'OM';
+dir_name_carray{end+1} = 'D:\axysimmetric_objFun\HEX20_meshf_2\attempt8'; exp_params_carray{end+1} = [26e-3,19,26]; mat_type_carray{end+1} = 'OM';
 %%%%% MooneyRivlin 
-% dir_name_carray{end+1} = 'D:\axysimmetric_objFun\MooneyRivlin\attempt6'; exp_params_carray{end+1} = [57e-3,57e-3,880*(57e-3+57e-3)]; mat_type_carray{end+1} = 'MR';
+dir_name_carray{end+1} = 'D:\axysimmetric_objFun\MooneyRivlin\attempt6'; exp_params_carray{end+1} = [57e-3,57e-3,880*(57e-3+57e-3)]; mat_type_carray{end+1} = 'MR';
 %%%%% Neo-Hookean
-% dir_name_carray{end+1} = 'D:\axysimmetric_objFun\NeoHookeanYoung\attempt2'; exp_params_carray{end+1} = [59e-3,0.3650]; mat_type_carray{end+1} = 'NH';
+dir_name_carray{end+1} = 'D:\axysimmetric_objFun\NeoHookeanYoung\attempt2'; exp_params_carray{end+1} = [59e-3,0.3650]; mat_type_carray{end+1} = 'NH';
 %%%%%% Ogden 1st order
-% dir_name_carray{end+1} = 'D:\axysimmetric_objFun\OgdenFirstOrder\coarse_sweep\attempt6'; exp_params_carray{end+1}=[26e-3,19,26]; mat_type_carray{end+1} = 'OG';
-dir_name_carray{end+1} = 'D:\indentify_runs\Ogden\analysis 1'; exp_params_carray{end+1}=[26e-3,19,26]; mat_type_carray{end+1} = 'OG';
+dir_name_carray{end+1} = 'D:\axysimmetric_objFun\OgdenFirstOrder\coarse_sweep\attempt6'; exp_params_carray{end+1}=[26e-3,19,26]; mat_type_carray{end+1} = 'OG';
 %%%%%% 
 file_name_carray = fullfile(dir_name_carray,'test.mat');
 % % % % % % % % % % %% % % % % % % % % % % % % % % % % % % <<<<< User-specified (END)
@@ -98,25 +96,27 @@ for dir_ind = 1:numel(file_name_carray)
             end
             ref_test = temp_ref_test_arr;
     end 
-    % Insert values to objectiveStruct (used for evaluating the objective
-    % function).
+    
     objectiveStruct.force_exp = ref_test.indenter_RB_out.Fz.data;
     objectiveStruct.indentation_depth_exp = ref_test.indenter_RB_out.z.data;
     [~,objectiveStruct.pos_exp, objectiveStruct.disp_exp] = getNPosMat(ref_test);
-    
-    % Add synthetic random noise to the synthetic test data measurements
+    % Add random noise to "experimental" data
     S_pos = rand(size(objectiveStruct.pos_exp));
     S_force = rand(size(objectiveStruct.force_exp));
-    de = 0; % de (%) <<< set de=0 to disable synthetic noise
+    de = 0; % de (%)
     M_pos = de*((2*S_pos-1)/100)+1; % =100+-de%     
     M_force = de*((2*S_force-1)/100)+1; % =100+-de% 
     objectiveStruct.pos_exp = objectiveStruct.pos_exp.*M_pos;
     objectiveStruct.force_exp = objectiveStruct.force_exp.*M_force;
     
+    
+    
     global variable_tracking_struct
+%     global objectiveStruct
     variable_tracking_struct.isfirst_flg = 1;
     objectiveStruct.formulation = 6;
     objectiveStruct.indenterRadius = 15;
+    eta_arr = [0,0.25,0.5,0.75,1];
     %Calculate objective function value for each test
     for i=1:numel(test)     % run over tests
         if test{i}.runFlag==0
@@ -129,7 +129,7 @@ for dir_ind = 1:numel(file_name_carray)
             end
         else
             warning('Obective function field not found. Evaluating test #%d/%d in %s.',i,numel(test),dir_name); 
-            test{i}.obj_fun_val = objFun(test{i},objectiveStruct); %evaluate objFun
+            test{i}.obj_fun_val = objFun(test{i}); %evaluate objFun
             save_obj_fun_val_temp = 'yes';
         end
     end
@@ -140,7 +140,8 @@ for dir_ind = 1:numel(file_name_carray)
     end
     waitbar((dir_ind-1)/numel(file_name_carray),waitbar1,'Plotting Data','Name',sprintf('(%d/%d)',dir_ind,numel(file_name_carray)));
     %% Post Processing
-%     mat_type = matTypeRename(somthing like test{1}.mat_type); % automatically specify material type from saved data (implementation needs work)
+%     mat_type = matTypeRename(somthing like test{1}.mat_type); % automatically
+%     specify material type from saved data (implementation needs work)
     mat_type = mat_type_carray{dir_ind};
     figH = MakePlots(test,mat_type,eta_arr,dir_name,normalize_param,colormap_data_field,F_pos_version,save_figures,fig_save_path);
 end

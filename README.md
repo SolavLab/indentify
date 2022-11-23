@@ -6,20 +6,89 @@
 
 # Table of contents
 - [Project Summary](#Summary)
-- [Application highlights](#Application)
 - [Installation](#Installation)
-
+- module I: [ *Axisymmetric Indentation*](#Axisymmetric)
+- module II: [*Objective Function Analysis*](#ObjectiveFunction)
+- module III: [*Axisymmetric Indentation*](#Axisymmetric)
 
 # Project Summary <a name="Summary"></a>
-*indentify* is open-source MATLAB project for exploring the identifiability of soft-tissue material parameters from noninvasive indentation test and inverse finite-element analysis. *indentify* utilizes the open-sourced software [GIBBON MATLAB toolbox](https://gibboncode.org) and [FEBio nonlinear FE solver](https://febio.org/) to create an automated and customizable environment for characterizing and solving the inverse problem with synthetic test data.
+*indentify* is an open-source MATLAB project designed for exploring the identifiability of soft-tissue material parameters (hyperelastic laws) from noninvasive indentation test and inverse finite-element analysis. *indentify* utilizes the open-sourced software [GIBBON MATLAB toolbox](https://gibboncode.org) and [FEBio](https://febio.org/) nonlinear FE solver to create an automated and customizable environment for characterizing and solving the inverse problem with synthetic test data.
 
-The main parts of the project currently include:
-1. [Axisymmetric Indentation](#Axisymmetric): Automatically setup and execute a generic FE model with user-specified *trial* and *baseline* (synthetic test data) parameter sets.
-2. <u>[Objective Function Analysis](#ObjectiveFunction)</u>: Evaluate and visualize the objective function over the trialed parameter space.
-3. <u>[Parameter Identification](#Identification)</u>: Implement nonlinear optimization schemes for minimizing the objective function.
+Current modules capabilities:
+1. [*Axisymmetric Indentation*](#Axisymmetric): Carry out preliminary, bulk calculations, on a customizable FE model.
+2. [*Objective Function Analysis*](#ObjectiveFunction): Define, evaluate and visualize the objective function.
+3. [*Parameter Identification*](#Identification): Implement and compare nonlinear optimization schemes for minimizing the objective function.
 
-# Installation
+# Installation <a name="Installation"></a>
+##### *indentify*
+Create a local copy of *indentify* by simply cloning the latest repository to your preferred `<local directory>`:
+1. `cd <local directory>`   
+2. `git init`  
+3. `git clone https://github.com/SolavLab/indentify`
+
+Alternatively, download and unzip the [files](https://github.com/SolavLab/indentify/archive/main.zip) manually.
+
+##### Third-party apps
+Before *indentify* can be used, the following software packages must be installed (follow instructions in links):
+* [FEBio](https://febio.org/downloads/)
+* [gibbonCode/GIBBON](https://github.com/gibbonCode/GIBBON)
+* *MATLAB - Optimization Toolbox™* (`HOME tab` &rightarrow; `environment` &rightarrow; `Add-Ons Explorer`)
+* [yamlmatlab](https://github.com/jerelbn/yamlmatlab) (**already included with *indentify*)**
+
+# Getting Started
+***important:*** make sure to add the *indentify* folder (`<indentify directory>`) <u>and</u> subfolders to MATLAB's search path:
+>  `HOME tab` &rightarrow; `environment` &rightarrow; `Set path` &rightarrow; `add with subfolders` &rightarrow; `<indentify directory>`  
+> **or**  
+> `command line` &rightarrow; `addpath(genpath('<indentify directory>'))`
 
 ## Axisymmetric Indentation <a name="Axisymmetric"></a>
+Exploring material parameters identifiability and sensitivity, often requires preliminary numerical data obtained by numerous FE simulations, which is later used to evaluate the objective function. As such, *indentify* utilizes GIBBON to implement an automation script for writing and executing FE models in batch: [`AxisymIndent_main.m`][AxisymIndent_main.m].
+
+The first section of [`AxisymIndent_main.m`][AxisymIndent_main.m] contains user-specified parameters which define the jobs that are to be carried in that analysis. After the user specifies the  master directory for the analysis (`runPath`), a separate subdirectory (`savePath`) is created automatically for each job in the batch, wherein an appropriate FEBio input file (.feb) is written and solved with FEBio's solver.
+
+An analysis may contain one or more jobs varying by mesh size and/or material parameters according to the following user-specified parameters, which are treated as vectors: `mesh_density_facotr`,`P1`,`P2` and `k_factor`. Therefore, the total amount of jobs in an analysis is given by the product of their lengths (see example 1).
+
+>**Example 1**: setting `mesh_density_facotr=1:10` and the rest as scalars will yield 10 jobs in total with increasingly finer meshes (useful for mesh convergence studies).
+
+For parameter identifiability analysis, set the values of `P1` and `P2` to cover the parameter space with the desired ranges and resolutions (see example 2).
+
+>**Example 2**: setting `mat_type='OG'`, `P1=[1:1:51]*1e-3`, `P2=[1:1:37]` and the rest as scalars, will repeat the indentation test over a grid of 51x37 parameter sets with the first-order Ogden material model (1887 jobs in total). See Table 2 in paper.
+
 ## Objective Function Analysis <a name="ObjectiveFunction"></a>
+The purpose of this module is to investigate the contribution of different measurement modalities, namely indentation forces-depth and full-field surface displacement measurement, to the identifiability of several hyperselastic constitutive parameters.
+
+The main script of this module, [`SensitivityAnalysis_main.m`][SensitivityAnalysis_main.m], performs post-processing on the data generated by the [*Axisymmetric Indentation*](#Axisymmetric) module. This includes the objective function definition ([`objFun.m`][objFun.m]), evaluation, visualization over a 2D parameter space, and exportation ([`MakePlots.m`][MakePlots.m]). *indentify* currently supports 2D and 3D contour, surface, and scatter plots of the objective function and its gradient magnitude at various indentation depths (visualization type controlled by value of `colormap_data_field` in [`SensitivityAnalysis_main.m`][SensitivityAnalysis_main.m]).
+
+Additionally, [`MakePlots.m`][MakePlots.m] uses finite-differences to derive a second order approximation to the objective function at the global minimum, and displays heatmaps of certain of its properties which are helpful for evaluating the sensitivity. For more information, see `link_to_paper`.
+
+
 ## Parameter Identification <a name="Identification"></a>
+
+
+<!-- Links to m-files  -->
+[AxisymIndent_main.m]: <./lib/Axisymmetric%20Indentation/AxisymIndent_main.m>
+[SensitivityAnalysis_main.m]: <./lib/Objective%20Function%20Analysis/Sensitivity%20Analysis/SensitivityAnalysis_main.m>
+[MakePlots.m]: <./lib/Objective%20Function%20Analysis/Sensitivity%20Analysis/MakePlots.m>
+[objFun.m]: <./lib/Objective%20Function%20Analysis/objFun.m>
+
+<!-- ```
+mat_type: OG
+p1: 0.001
+p2: 1.0
+k_factor: 1000.0
+test_ind: 1.0
+P1_ind: 1.0
+P2_ind: 1.0
+k_factor_ind: 1.0
+Specimen: {meshf: 2.0, alpha: 2.0, elementType: hex20, benchmark_flag: 0.0, ignore_formula: 1.0,
+  NR: 20.0, NH: 10.0, R_bias: 0.5, H_bias: 0.5, R: 60.0, H: 60.0}
+Indenter: {indenterRadius: 15.0}
+savePath: D:\indentify_runs\Ogden\analysis 1\test_1
+model_name: tempModel
+node_data_files: [tempModel_disp_out.txt, tempModel_pos_out.txt]
+element_data_files: [tempModel_stress_out.txt, tempModel_strain_out.txt]
+rigid_body_data: []
+rigid_body_data_files: [tempModel_indenter_RB_out.txt]
+elapsed_time: 9.2159564
+runFlag: 1.0
+``` -->

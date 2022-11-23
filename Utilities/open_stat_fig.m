@@ -12,7 +12,7 @@ function [figH] = open_stat_fig(figH)
 %     t = tiledlayout(2,3, 'Padding', 'tight','TileSpacing','tight');
     t2 = tiledlayout(1,3, 'Padding', 'none','TileSpacing','loose','Units',...
         'normalized','OuterPosition',[0 0 1 1]); % for presentation
-    t.InnerPosition(1) = 0.1; t.InnerPosition(3) = 0.8
+    t.InnerPosition(1) = 0.1; t.InnerPosition(3) = 0.8;
 %     t2.InnerPosition = [0.1 0 0.8 0.75];
 %     t2.PositionConstraint = 'OuterPosition'
 %     t2.InnerPosition(3) = 12;
@@ -179,11 +179,11 @@ function [figH] = open_stat_fig(figH)
             [~, e_ind] = min(abs(10^(0.25*log10(a)+0.75*log10(b))-minor_ticks)); e = minor_ticks(e_ind);
             new_ticks = [a c d e b];
             tol = 1/10;
-            mask = abs(log10(new_ticks)-log10(cb_h(kk).Ruler.TickValues'))<=((log10(b)-log10(a))*tol)
+            mask = abs(log10(new_ticks)-log10(cb_h(kk).Ruler.TickValues'))<=((log10(b)-log10(a))*tol);
             [~,mask_col] = find(mask);
             new_ticks(unique(mask_col)) = [];
             cb_h(kk).Ticks = unique(sort([cb_h(kk).Ruler.TickValues new_ticks]));
-            opt = 2
+            opt = 2;
             switch opt
                 case 1
                     if (cb_h(kk).Ticks(1)<=1e-1)||(cb_h(kk).Ticks(1)>=1e1)||(cb_h(kk).Ticks(end)/cb_h(kk).Ticks(1)>=100)
@@ -191,7 +191,7 @@ function [figH] = open_stat_fig(figH)
                         if (cb_h(kk).Ticks(end)/cb_h(kk).Ticks(1)<=10000)
                             exponent_factor = floor(log10(cb_h(kk).Ticks(1)));
                             for ii=1:length(cb_h(kk).Ticks)
-                                new_lbls{ii} = num2str(cb_h(kk).Ticks(ii)/(10^(exponent_factor)))
+                                new_lbls{ii} = num2str(cb_h(kk).Ticks(ii)/(10^(exponent_factor)));
                            end
                            cb_h(kk).TickLabels = new_lbls;
                            cb_h(kk).Title.String = ['\times10^{',num2str(exponent_factor),'}'];

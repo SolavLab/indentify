@@ -101,8 +101,6 @@ warning(bakWarn);
                     optimal_params_temp(2) = optimal_params_temp(2)*1000;
                 end
             end
-            
-            
 %% old
                 %                 if N_times==1
 % %                     F_force = test{test_ind}.obj_fun_val.mean(test{test_ind}.obj_fun_val.ForceDevMagNormalized(2:end));
@@ -515,10 +513,8 @@ warning(bakWarn);
     figH(1).UserData.group_name = group_name;
     figH(1).Name = fig_name;
     adjustPlotsToolbar(figH(1));
-
     %% second figure (heatmaps)
-    figH = open_stat_fig(figH)
-    
+    figH = open_stat_fig(figH);
     drawnow;
     pause(0.02);
 %     set(get(handle(figH(2)), 'javaframe'), 'GroupName', group_name);
