@@ -9,7 +9,7 @@
 - [Installation](#Installation)
 - module I: [ *Axisymmetric Indentation*](#Axisymmetric)
 - module II: [*Objective Function Analysis*](#ObjectiveFunction)
-- module III: [*Axisymmetric Indentation*](#Axisymmetric)
+- module III: [*Parameter Identification*](#Identification)
 
 # Project Summary <a name="Summary"></a>
 *indentify* is an open-source MATLAB project designed for exploring the identifiability of soft-tissue material parameters (hyperelastic laws) from noninvasive indentation test and inverse finite-element analysis. *indentify* utilizes the open-sourced software [GIBBON MATLAB toolbox](https://gibboncode.org) and [FEBio](https://febio.org/) nonlinear FE solver to create an automated and customizable environment for characterizing and solving the inverse problem with synthetic test data.
