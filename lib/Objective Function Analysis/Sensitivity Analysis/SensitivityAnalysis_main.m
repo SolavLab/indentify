@@ -17,14 +17,14 @@ mat_type_carray = {}; % mat_type_carray{k} - name of material model used in the 
 % dir_name_carray{end+1} = runPath; exp_params_carray{end+1} = [p1*,p2*,k_factor*(optional)]; mat_type_carray{end+1} = material-model-name;
 
 %%%%%% Ogden-Moerman
-% dir_name_carray{end+1} = 'D:\axysimmetric_objFun\HEX20_meshf_2\attempt8'; exp_params_carray{end+1} = [26e-3,19,26]; mat_type_carray{end+1} = 'OM';
+dir_name_carray{end+1} = 'D:\axysimmetric_objFun\HEX20_meshf_2\attempt8'; exp_params_carray{end+1} = [26e-3,19,26]; mat_type_carray{end+1} = 'OM';
 %%%%% MooneyRivlin 
 % dir_name_carray{end+1} = 'D:\axysimmetric_objFun\MooneyRivlin\attempt6'; exp_params_carray{end+1} = [57e-3,57e-3,880*(57e-3+57e-3)]; mat_type_carray{end+1} = 'MR';
 %%%%% Neo-Hookean
 % dir_name_carray{end+1} = 'D:\axysimmetric_objFun\NeoHookeanYoung\attempt2'; exp_params_carray{end+1} = [59e-3,0.3650]; mat_type_carray{end+1} = 'NH';
 %%%%%% Ogden 1st order
 % dir_name_carray{end+1} = 'D:\axysimmetric_objFun\OgdenFirstOrder\coarse_sweep\attempt6'; exp_params_carray{end+1}=[26e-3,19,26]; mat_type_carray{end+1} = 'OG';
-dir_name_carray{end+1} = 'D:\indentify_runs\Ogden\analysis 1'; exp_params_carray{end+1}=[26e-3,19,26]; mat_type_carray{end+1} = 'OG';
+% dir_name_carray{end+1} = 'D:\indentify_runs\Ogden\analysis 1'; exp_params_carray{end+1}=[26e-3,19,26]; mat_type_carray{end+1} = 'OG';
 %%%%%% 
 file_name_carray = fullfile(dir_name_carray,'test.mat');
 % % % % % % % % % % %% % % % % % % % % % % % % % % % % % % <<<<< User-specified (END)
@@ -149,6 +149,29 @@ close(waitbar1);
 if strcmp(save_figures, 'yes')
     winopen(fig_save_path)
 end
+%% 
+% _*indentify footer text*_ 
+% 
+% License: <https://github.com/SolavLab/indentify/blob/main/LICENSE>
+% 
+% indentify: An open-source project for exploring the identifiability of 
+% soft-tissue material parameters from noninvasive indentation test and
+% inverse finite-element analysis.
+% 
+% Copyright (C) 2022 Zohar Oddes, Dana Solav, and the indentify contributors
+% 
+% This program is free software: you can redistribute it and/or modify
+% it under the terms of the GNU Affero General Public License as published
+% by the Free Software Foundation, either version 3 of the License, or
+% (at your option) any later version.
+% 
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU Affero General Public License for more details.
+% 
+% You should have received a copy of the GNU Affero General Public License
+% along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 

@@ -1,20 +1,17 @@
 function figH = MakePlots(test,mat_type,eta_arr,dir_name,normalize_param,colormap_data_field,F_pos_version,save_figures,fig_save_path)  
-%% 
 desktop = com.mathworks.mde.desk.MLDesktop.getInstance;
 path_parts = strsplit(dir_name,filesep);
 % group_name = sprintf('(%s)_%s_%s_wieght_norm=%d_param_norm_%d',mat_type,path_parts{end-1},path_parts{end},F_pos_version,normalize_param);
 group_name = sprintf('%s_wieght_norm=%d_param_norm_%d',mat_type,F_pos_version,normalize_param);
 myGroup = desktop.addGroup(group_name);
 desktop.setGroupDocked(group_name, 0);
-myDim   = java.awt.Dimension(1, 2);  
+myDim = java.awt.Dimension(1, 2);  
 % 1: Maximized, 2: Tiled, 3: Floating
 desktop.setDocumentArrangement(group_name, 1, myDim)
-figH    = gobjects(1, 2);
+figH = gobjects(1, 2);
 bakWarn = warning('off','MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame');
-
 warning(bakWarn);
-
-% finite differences options and data
+%% finite differences options and data
     global finite_diff_data
     finite_diff_data.n = 8; % truncation error order O(h^n)
     finite_diff_data.leap = 1; % distances between adjacent data points for calculation differences
@@ -51,10 +48,6 @@ warning(bakWarn);
             D1_arr = [];
             D2_arr = [];
             min_OBJ_VAL = Inf;
-            
-            
-            
-            
             %% Calculate datapoints coordinates and values for graphic objects 
             N_p1 = test{end}.P1_ind;
             N_p2 = test{end}.P2_ind;
@@ -85,9 +78,7 @@ warning(bakWarn);
             optimal_OBJ_VAL(kk-1,eta_ind) = min_OBJ_VAL; % global minimum
             optimal_params{kk-1,eta_ind} = [test{optimal_ind(kk-1,eta_ind)}.p1, test{optimal_ind(kk-1,eta_ind)}.p2];
             optimal_params_temp = optimal_params{kk-1,eta_ind};
-           
             if normalize_param
-%                 [X,Y] = meshgrid(P1_arr./optimal_params_temp(1),P2_arr./optimal_params_temp(2));
                 X = X/optimal_params_temp(1);
                 Y = Y/optimal_params_temp(2);
             else % convert to easier untis
@@ -101,62 +92,6 @@ warning(bakWarn);
                     optimal_params_temp(2) = optimal_params_temp(2)*1000;
                 end
             end
-%% old
-                %                 if N_times==1
-% %                     F_force = test{test_ind}.obj_fun_val.mean(test{test_ind}.obj_fun_val.ForceDevMagNormalized(2:end));
-%                     F_force = mean(F_force);
-% %                 else 
-% %                     F_force = test{test_ind}.obj_fun_val.ForceDevMagNormalized(kk);
-%                 end
-%                 
-%                 
-%                 switch F_pos_version
-%                     case 1
-%                         if N_times==1
-%                             F_pos = mean(test{test_ind}.obj_fun_val.nodeWeightedPositionDevMag1(2:end));
-%                         else
-%                             F_pos = test{test_ind}.obj_fun_val.nodeWeightedPositionDevMag1(kk);
-%                         end
-%                     case 2
-%                         if N_times==1
-%                             F_pos = mean(test{test_ind}.obj_fun_val.nodeWeightedPositionDevMag2(2:end));
-%                         else
-%                             F_pos = test{test_ind}.obj_fun_val.nodeWeightedPositionDevMag2(kk);
-%                         end
-%                 end
-%                 OBJ_VAL = temp_eta*sqrt(test{test_ind}.obj_fun_val.F1)+(1-temp_eta)*sqrt(test{test_ind}.obj_fun_val.F2); %sqrt
-%                 OBJ_VAL = temp_eta*test{test_ind}.obj_fun_val.F1+(1-temp_eta)*test{test_ind}.obj_fun_val.F2; %no sqrt
-
-                
-%                 OBJ_VAL = temp_eta*F_force+(1-temp_eta)*F_pos; %no sqrt
-%                     OBJ_VAL = temp_eta*sqrt(F_force)+(1-temp_eta)*sqrt(F_pos); % sqrt
-
-%                                         OBJ_VAL = sqrt(temp_eta*F_force+(1-temp_eta)*F_pos); %no sqrt
-%                     if any(strcmp(mat_type, {'NH-Lamme'}))
-%                         Z(test{test_ind}.P2_ind,test{test_ind}.P1_ind*test{test_ind}.P2_ind) = OBJ_VAL;
-%                     else
-                
-%                     end
-%%
-          
-%% old
-%             for i=1:numel(test)
-%                 switch mat_type
-%                     case 'NH-Lamme' % irrelevant
-%                         mu_arr = [2:2:38]*1e-3;
-%                         lambda_arr = linspace(1.8462,1862,19)*1e-3;
-%                         test{i}.mu = mu_arr(test{i}.P1_ind);
-%                         test{i}.lambda = lambda_arr(test{i}.P2_ind);
-%                         P1_arr = sort(unique([P1_arr test{i}.mu]));
-%                         P2_arr = sort(unique([P2_arr test{i}.lambda]));
-%                         optimal_params_temp(1) = mu_arr(test{optimal_ind(kk-1,eta_ind)}.P1_ind);
-%                         optimal_params_temp(2) = lambda_arr(test{optimal_ind(kk-1,eta_ind)}.P2_ind);
-%                          
-%                     otherwise
-%                         P1_arr = sort(unique([P1_arr test{i}.p1]));
-%                         P2_arr = sort(unique([P2_arr test{i}.p2]));
-%                 end
-%             end
             %% draw settings
             alpha = 0.8;
             draw_grad_arrows = 0;
@@ -178,10 +113,8 @@ warning(bakWarn);
                 % Fval contour
                     [~,c_h{kk-1,eta_ind}] = contourf(ax{kk-1,eta_ind},X,Y,Z,'Tag','c_h');
                     fig_title_str = sprintf('Colormap data field: %s','Objective function value');
-%                      [c_h2{kk-1,eta_ind}] = scatter3(reshape(X,[],1),reshape(Y,[],1),'MarkerEdgeColor','k','SizeData',2);
-%                      [c_h2{kk-1,eta_ind}] = scatter3(reshape(X,[],1),reshape(Y,[],1),reshape(Z,[],1), 2,reshape(Z,[],1));
                 case 'Fval_contour3'
-                % Fval contour
+                % Fval 3D contour
                     [~,c_h{kk-1,eta_ind}] = contour3(X,Y,Z,10);
                     fig_title_str = sprintf('Colormap data field: %s','Objective function value');
                 case 'grad_mag_contour'
@@ -199,46 +132,20 @@ warning(bakWarn);
             if kk==2
                 title(sprintf('\\eta=%g',eta_arr(eta_ind)));
             end
-
-
-
             axis_metadata.eta = temp_eta;
             axis_metadata.T = kk;
             axis_metadata.i = kk-1;
             axis_metadata.j = eta_ind;
             ax{kk-1,eta_ind}.UserData = axis_metadata;
             if normalize_param
-%                     xlabel('{\boldmath$\frac{c}{c^\ast}$}', 'interpreter', 'latex');
-%                     ylabel('{\boldmath$\frac{m}{m^\ast}$}', 'interpreter', 'latex');
                 true_scatter_h{kk-1,eta_ind} = scatter(test{optimal_ind(kk-1,eta_ind)}.p1/optimal_params_temp(1),test{optimal_ind(kk-1,eta_ind)}.p2/optimal_params_temp(2),'MarkerFaceColor','w', 'MarkerEdgeColor', 'k', 'DisplayName', '"True" parameters','Tag','True_param_scatter');
-%                     axis equal
             else
-%                     xlabel('{\boldmath$c$}', 'interpreter', 'latex');
-%                     ylabel('{\boldmath$m$}', 'interpreter', 'latex');
                 true_scatter_h{kk-1,eta_ind} = scatter(optimal_params_temp(1),optimal_params_temp(2),'MarkerFaceColor','w', 'MarkerEdgeColor', 'k', 'DisplayName', '"True" parameters','Tag','True_param_scatter');
-               
             end
             xlim(ax{kk-1,eta_ind},[min(X,[],'all'),max(X,[],'all')]);
             ylim(ax{kk-1,eta_ind},[min(Y,[],'all'),max(Y,[],'all')]);
         end
     end
-    % determine and assign proper title for figure
-%     switch colormap_data_field
-%         case 'grad_mag_surface'
-%             fig_title_str = sprintf('Colormap data field: %s','Objective function gradient magnitude');
-%         case 'Fval_surface'
-%             fig_title_str = sprintf('Colormap data field: %s','Objective function value');
-%         case 'Fval_contour'
-%             fig_title_str = sprintf('Colormap data field: %s','Objective function value');
-%         case 'Fval_contour3'
-%         % Fval contour
-%             fig_title_str = sprintf('Colormap data field: %s','Objective function value');
-%         case 'grad_mag_contour'
-%         % norm(gradient) contour
-%             fig_title_str = sprintf('Colormap data field: %s','Objective function gradient magnitude');
-%         case 'scatter3Fval'
-%             fig_title_str = sprintf('Colormap data field: %s','Objective function value');
-%     end
     set(gcf, 'Name', sprintf('%s',fig_title_str));
     % add colorbar
     cb = colorbar;
@@ -257,31 +164,6 @@ warning(bakWarn);
             max_val = 0.5; % max value in auto mode is 2.25, can lower this to truncate higher values
     end
     df = (max_val-min_val)/10; % increment between isolines
-
-    
-    %%%%%%%% prevrious
-%     levels_arr = 0:df:max_val; 
-%     levels_arr_cbar = [0:df:(max_val+df)];
-%     cb_ticks = [levels_arr_cbar+df/2].^2;
-%     levels_arr = levels_arr.^2;
-%     levels_arr_cbar = levels_arr_cbar.^2;
-%     
-%     r = diff(levels_arr_cbar)./levels_arr_cbar(end);
-%     cmap = parula(length(levels_arr));
-%     new_cmap = [];
-%     
-%     for ii=1:length(r)
-%         temp_map = ones(round(100*length(levels_arr)*r(ii)),1)*cmap(ii,:);
-%         new_cmap = [new_cmap; temp_map];
-%         y_tick_str{ii} = sprintf('%d%%-%d%%', df*100*(ii-1),df*100*ii);
-%     end
-%     y_tick_str{end} = sprintf('>%d%%',max_val*100);
-%     colormap(new_cmap);
-%     cb.Ticks = cb_ticks;
-%     cb.TickLabels =y_tick_str;
-%     
-    
-    
     %% Custom colormap and colorbar
     %%%%%%%% new
     levels_arr = 0:df:max_val; 
@@ -289,11 +171,9 @@ warning(bakWarn);
     cb_ticks = [levels_arr_cbar+df/2].^2;
     levels_arr = levels_arr.^2;
     levels_arr_cbar = levels_arr_cbar.^2;
-    
     r = diff(levels_arr_cbar)./levels_arr_cbar(end);
     cmap = parula(length(levels_arr));
     new_cmap = [];
-    
     for ii=1:length(r)
         temp_map = ones(round(100*length(levels_arr)*r(ii)),1)*cmap(ii,:);
         new_cmap = [new_cmap; temp_map];
@@ -319,7 +199,6 @@ warning(bakWarn);
                 optimal_params_temp(2) = optimal_params_temp(2)*1000;
             end
             ax{i,j}.FontSize = axis_font_size;
-        %     xlabel(ax(i),'$c/c^\ast$', 'interpreter', 'latex');
             %% Set yabel
             if j==1
                 switch mat_type
@@ -384,39 +263,24 @@ warning(bakWarn);
                          end
                 end
             end
-        %     colorbar(ax(i),'off');
-%             c_h{i,j} = findobj(ax{i,j}.Children,'Type','contour'); % handle for countourf object.
             %% update plots
             c_h{i,j}.LevelList = levels_arr; % assign new LevelList
             ax{i,j}.CLim = [levels_arr_cbar(1) levels_arr_cbar(end)]; % update Color limmit range
-%             c_h{i,j}.LineColor = 'k'; %'k' % hide isolines
-%             c_h{i,j}.Fill = 'off';
             ax{i,j}.TickLength(1) = 0.025;
             ax{i,j}.LineWidth = 1;
             ax{i,j}.Layer = 'top';
-        %     ax(i).XTickLabelMode = 'manual'
             ax{i,j}.XLabel.FontSize = axis_label_font_size;
-        %     ax(i).XTick = ax(i).XLim(1):0.2:ax(i).XLim(2);
-        %     ax(i).XTick = 0:0.2:2;
             ax{i,j}.Title.FontSize = title_font_size;
             ax{i,j}.YLabel.FontSize = axis_label_font_size;
-        %     ax(i).YTick = 0.2:0.2:1.8
             ax{i,j}.XTickLabelRotation = 30;
             ax{i,j}.YTickLabelRotation = 30;
             ax{i,j}.Box = 'on';
             axis(ax{i,j},'square');
-    %         ax{i,j}.XLim = [1 15]/8
-    
-    
             %% Hessian calculation
             Hessian_temp = getHessian(c_h{i,j}.XData,c_h{i,j}.YData,c_h{i,j}.ZData,optimal_ind(i,j),test);
-%             Hessian_temp2 = getHessian(c_h{i,j}.XData,c_h{i,j}.YData,c_h{i,j}.ZData,optimal_ind(i,j),test,4);
-%             Hessian_temp3 = getHessian(c_h{i,j}.XData,c_h{i,j}.YData,c_h{i,j}.ZData,optimal_ind(i,j),test,8);
-        
             c_h{i,j}.UserData.Hessian = Hessian_temp;
             c_h{i,j}.UserData.Hessian_tilde = [1 Hessian_temp(1,2)/sqrt(Hessian_temp(1,1)*Hessian_temp(2,2));
                                               Hessian_temp(2,1)/sqrt(Hessian_temp(2,2)*Hessian_temp(1,1)) 1];
-%             uncertainty_limits = getUncertaintyLimits(c_h{i,j}.XData,c_h{i,j}.YData,c_h{i,j}.ZData,optimal_ind(i,j),test)
             %% uncertainty limits
             if normalize_param
                 uncertainty_limits = getUncertaintyLimits(c_h{i,j},[1,1]);
@@ -433,8 +297,6 @@ warning(bakWarn);
             alpha_2 = quiver_r/sqrt((V(1,2)/dx)^2+(V(2,2)/dy)^2);
             p1_scale = 1;%(ax{i,j}.XLim(2)-ax{i,j}.XLim(1))/10;
             p2_scale = 1;%;(ax{i,j}.YLim(2)-ax{i,j}.YLim(1))/10;
-            
-            
             q_scale_factor = sqrt(dx^2+dy^2)/10;
             p1_scale = q_scale_factor; p2_scale = q_scale_factor;
             if normalize_param
@@ -452,11 +314,8 @@ warning(bakWarn);
                 'ShowArrowHead', 'off');
             q2_r = quiver(ax{i,j},xc_quiver,yc_quiver,-V(1,2)*alpha_2,-V(2,2)*alpha_2,1,...
                 'ShowArrowHead', 'off','Color', q2.Color);
-            
             ax{i,j}.UserData.fin_diff_marks = markPointsForDerivatives(ax{i,j},c_h{i,j}.XData,c_h{i,j}.YData,optimal_ind(i,j),test);
-            
             ax{i,j}.UserData.quiver_h = [q1 q1_r q2 q2_r];
-%             ax{i,j}.Subtitle. Interpreter = 'latex';
             %% Hessians data textbox
             show_H_data = 0;
             if show_H_data
@@ -474,10 +333,7 @@ warning(bakWarn);
             ellipsoid_contour_white{i,j} = fcontour(ax{i,j}, @(x,y) optimal_OBJ_VAL(i,j)+0.5*dot((theta_fun(x,y)'*Hessian_temp)',theta_fun(x,y)),'--w', 'LevelList', optimal_OBJ_VAL(i,j)+0.05^2, 'Visible', 'on','Tag','WhiteLevels');
         end
     end
-%     t.TileSpacing = 'tight';
     set(t.YLabel,'Interpreter', 'latex','String',{'$\leftarrow$ Indentation depth, $\delta$'},'FontSize', tile_layout_font_size);
-%     set(t.XLabel,'Interpreter', 'latex','String',{'$\eta \rightarrow$'},'FontSize', tile_layout_font_size);
-
     set(t.Title, 'Interpreter', 'latex','String',{['\textbf{(a)} Objective function for the ',mat_type,' model']},...
         'FontSize', tile_layout_font_size,'Color', 'k');
     if ~isequal(text_box,cell(size(text_box)))
@@ -485,8 +341,8 @@ warning(bakWarn);
     end
 %     rect = annotation(gcf,'rectangle', t.Position);
 %     rect_out = annotation(gcf,'rectangle', t.OuterPosition);
-
 %     addTransperacy(c_h,0.5); %add transperacy to contour plots (optional) [https://www.mathworks.com/matlabcentral/answers/514830-adjusting-the-transparency-of-a-contour-plot-using-a-gradient-of-alpha-values]
+%% Arrange figure and store graphic object's handles to UserData
 %     figH(1).UserData.rect = rect;
 %     figH(1).UserData.rect_out = rect_out;
     figH(1).UserData.ax = ax;
@@ -507,7 +363,6 @@ warning(bakWarn);
     figH(1).UserData.F_pos_version = F_pos_version;
     figH(1).UserData.indentation_depths = test{1}.pos_out.z.data(intersect(find(test{1}.pos_out.y.data(:,2)==0),find(test{1}.pos_out.x.data(:,2)==0)),:);
     figH(1).UserData.fig_type = 'ContourPlots';
-%     fig_name = sprintf('(%s)_%s_%s_wieght_norm=%d_param_norm_%d',mat_type,path_parts{end-1},path_parts{end},F_pos_version,normalize_param);
     fig_name = strcat('Contour plots [',group_name,']');
     figH(1).UserData.fig_name = fig_name;
     figH(1).UserData.group_name = group_name;
@@ -517,10 +372,10 @@ warning(bakWarn);
     figH = open_stat_fig(figH);
     drawnow;
     pause(0.02);
-%     set(get(handle(figH(2)), 'javaframe'), 'GroupName', group_name);
-   figH(2).UserData.figH1 = figH(1);
-   figH(2).UserData.fig_type = 'HessianData';
-   figH(2).UserData.fig_name = figH(2).Name;
+    %     set(get(handle(figH(2)), 'javaframe'), 'GroupName', group_name);
+    figH(2).UserData.figH1 = figH(1);
+    figH(2).UserData.fig_type = 'HessianData';
+    figH(2).UserData.fig_name = figH(2).Name;
     %% save figures
     figH(1).UserData.t.XLabel.String = [];
     if strcmp(save_figures, 'yes')
@@ -592,24 +447,18 @@ warning(bakWarn);
         end
     end
 end
-
-
 %% Auxiliary functions 
 function [mu,lambda] = Young2Lamme(E,nu)
     mu = E./(2*(1+nu));
     lambda = nu*E./((1+nu).*(1-2*nu));
 end
-
 % caluclates hessian from objective function evaluations (Z matrix of contourf)
 function [H] = getHessian(X,Y,Z,optimal_ind,test)
     global finite_diff_data
     ii = test{optimal_ind}.P2_ind;
     jj = test{optimal_ind}.P1_ind;
-    
     r = finite_diff_data.n/2;
     leap = finite_diff_data.leap;
-
-    
     try
         h_p1 = X(ii,jj+leap)-X(ii,jj); % delta_p1
         h_p2 = Y(ii+leap,jj)-Y(ii,jj); % delta_p2
@@ -691,9 +540,6 @@ function [H] = getHessian(X,Y,Z,optimal_ind,test)
 % %     H12 = -(Z(ii,jj+delta_n)+Z(ii,jj-delta_n)+Z(ii+delta_n,jj)+Z(ii-delta_n,jj)-2*Z(ii,jj)-Z(ii+delta_n,jj+delta_n)-Z(ii-delta_n,jj-delta_n))/(2*(X(ii,jj+1*delta_n)-X(ii,jj))*(Y(ii+1*delta_n,jj)-Y(ii,jj)));
 %     H21 = H12;
 end 
-
-
-
 function [uncert_lim] = getUncertaintyLimits(c_h,optimal_params)
 %%%%%%%%%%%%   ->  uncert_lim = [height, x_min, x_max, y_min, y_max, bounding_flag];
 % returns the bounding rectangular dimensions for different objective function values defined by level_list
@@ -796,76 +642,23 @@ function adjustTextbox(ax,text_box)
     font_size = 14;
     drawnow
     set(text_box{max_l_ii,max_l_jj},'FontSize', font_size, 'FitBoxToText', 'On');
-% drawnow
-    
-%         set(text_box{max_l_ii,max_l_jj}, 'FitBoxToText', 'On');
-%         drawnow;
-      pause(1e-4)
-%       if text_box{max_l_ii,max_l_jj}.Position(3)>ax{max_l_ii,max_l_jj}.Position(3)*width_ratio
-        font_size = max([text_box{max_l_ii,max_l_jj}.FontSize*((ax{max_l_ii,max_l_jj}.Position(3)*width_ratio)/text_box{max_l_ii,max_l_jj}.Position(3)),5]);
-        text_box{max_l_ii,max_l_jj}.FontSize = font_size;
-%         box_height = 0;
-%         text_box{max_l_ii,max_l_jj}.Position(3) = target_pos(3);\
-      
+    pause(1e-4)
+    font_size = max([text_box{max_l_ii,max_l_jj}.FontSize*((ax{max_l_ii,max_l_jj}.Position(3)*width_ratio)/text_box{max_l_ii,max_l_jj}.Position(3)),5]);
+    text_box{max_l_ii,max_l_jj}.FontSize = font_size;
+    drawnow
+    drawnow limitrate nocallbacks;
 
-%       end
-      drawnow
-          drawnow limitrate nocallbacks;
-
-%       text_box{max_l_ii,max_l_jj}.FitBoxToText
-%        drawnow
-%        drawnow limitrate nocallbacks;
-       box_width = text_box{max_l_ii,max_l_jj}.Position(3);
-       box_height = text_box{max_l_ii,max_l_jj}.Position(4);
-       distance_from_bottom = text_box{max_l_ii,max_l_jj}.Position(2)-ax{max_l_ii,max_l_jj}.Position(2);
-       total_gap = ax{max_l_ii,max_l_jj}.Position(4)-text_box{max_l_ii,max_l_jj}.Position(4);
-      for ii=1:size(ax,1)
-        for jj=1:size(ax,2)
-                
-%             target_pos = getTextboxDim(ax{ii,jj});
+    box_width = text_box{max_l_ii,max_l_jj}.Position(3);
+    box_height = text_box{max_l_ii,max_l_jj}.Position(4);
+    distance_from_bottom = text_box{max_l_ii,max_l_jj}.Position(2)-ax{max_l_ii,max_l_jj}.Position(2);
+    total_gap = ax{max_l_ii,max_l_jj}.Position(4)-text_box{max_l_ii,max_l_jj}.Position(4);
+    for ii=1:size(ax,1)
+        for jj=1:size(ax,2)                
             text_box{ii,jj}.FontSize = font_size;
             text_box{ii,jj}.Position =[ax{ii,jj}.Position(1) ax{ii,jj}.Position(2)+total_gap box_width, box_height] ;
-%             set(text_box{ii,jj}, 'FitBoxToText', 'On');
-%             text_box{ii,jj}.Position(3) = box_width;
         end
-      end
-      drawnow();
-%     set(text_box, 'FitBoxToText', 'On')
-%     
-%     for ii=1:size(ax,1)
-%         for jj=1:size(ax,2)
-% %             str_length = strlength(text_box{ii,jj}.String)-[17;16;24];
-% %             old_units = text_box{ii,jj}.FontUnits;
-% %             text_box{ii,jj}.FontUnits = 'normalized';
-% %                 font_size = ax{ii,jj}.Position(3)/max(str_length)*2.5
-% % %             text_box{ii,jj}.FontUnits = old_units
-%             text_box{ii,jj}.FontUnits = 'points';
-%             font_size = 14;
-%             target_pos = getTextboxDim(ax{ii,jj});
-% %             set(text_box{ii,jj},'Position',target_pos);
-%               set(text_box{ii,jj},'Position',target_pos,...
-%                     'Color', 'w', 'BackgroundColor', 'k','FaceAlpha', 0.2, 'FontSize', font_size,...
-%                     'EdgeColor', 'none');
-%               set(text_box{ii,jj}, 'FitBoxToText', 'On');
-%               drawnow();
-%               if text_box{ii,jj}.Position(3)>target_pos(3)
-%                   text_box{ii,jj}.FontSize = text_box{ii,jj}.FontSize*(target_pos(3)/text_box{ii,jj}.Position(3))
-%               end
-%               
-% %             if text_box{ii,jj}.Position(3)>target_pos(3)
-% %                 set(text_box{ii,jj}, 'FitBoxToText', 'Off');
-% %                 set(text_box{ii,jj},'Position', target_pos);
-% % %                 pause(0.001);
-% %             end
-% %             while (text_box{ii,jj}.Position(3)>target_pos(3))&&(text_box{ii,jj}.FontSize>=5)
-% %                 text_box{ii,jj}.FontSize = text_box{ii,jj}.FontSize-1;
-% % 
-% %                 target_pos = getTextboxDim(ax{ii,jj});
-% %             pause(1e-8);
-% %             end
-%             set(text_box{ii,jj},'Position',target_pos);
-%         end
-%     end
+    end
+    drawnow();
 end
 %     
 function [dim] = getTextboxDim(ax)
@@ -966,8 +759,8 @@ function mitem_det_h_cback(src,event)
     t2.InnerPosition(3) = 12;
     
     det_hessian_tol = det(c_h{end,end}.UserData.Hessian)*1e-3;
-    
     t_ind = 1;
+
     im_ax(t_ind) = nexttile(); % H11
     for ii=1:size(ax,1)
         for jj=1:size(ax,2)   
@@ -1070,10 +863,6 @@ function mitem_det_h_cback(src,event)
     axis(im_ax, 'square');
     figH.UserData.t2 = t2;
 end
-
-
-
-
 function arrange_textbox_pt_cback(src,event,fig_h)
     ax = fig_h.UserData.ax;
     text_box = fig_h.UserData.text_box;
@@ -1082,52 +871,14 @@ function arrange_textbox_pt_cback(src,event,fig_h)
     end
     disp('done');
 end
-
 function fig1SizeChangeCBack(src,callbackdata)
-
     if isfield(src.UserData, 'ax')&&isfield(src.UserData,'text_box')
         text_box = src.UserData.text_box;
         if ~isequal(text_box,cell(size(text_box)))
             adjustTextbox(src.UserData.ax,src.UserData.text_box);
         end
     end
-    
-%     if isfield(src.UserData, 'rect')&&isfield(src.UserData,'t')
-%         rect = src.UserData.rect;
-%         rect_out = src.UserData.rect_out;
-%         t = src.UserData.t;
-        
-        
-%         t.PositionConstraint = 'OuterPosition';
-% %                 t.OuterPosition = [0.1 0.1 0.3 0.8];
-% 
-%         a = src.Position(3);
-%         b = 100;
-%         c = 50;
-%         switch t.PositionConstraint
-%             case 'innerposition'
-%                 t.Position(1) = b/a;
-%                 t.Position(3) = 1-(b+c)/a;
-%                 rect.Position = t.InnerPosition;
-%                 rect_out.Position = t.OuterPosition;
-%             case 'outerposition'
-% %                 rect.Position = t.OuterPosition;
-%             
-%         end
-%         t.Position(1)-t.OuterPosition(1);
-%         if (t.Position(1)-t.OuterPosition(1))<0.1
-% %             t.Position(3) = t.Position(3)-(t.Position(1)-t.OuterPosition(1)-0.1);
-%             t.PositionConstraint = 'innerposition';
-% %             t.Position(3) = 1-(b+c)/a-abs(t.Position(1)-t.OuterPosition(1)-0.1)
-% 1
-%             t.Position(3) = t.Position(4)/src.Position(4)*a
-%         end    
-%     end
-% %     t.OuterPosition
-% %     t.Units
-% t.Position(3)
 end
-
 function cb_callback(src,callbackdata)
     prompt = {'Colormap levels:'};
     dlgtitle = 'Colormap levels:';
@@ -1148,9 +899,7 @@ function cb_callback(src,callbackdata)
             ax{ii,jj}.Colormap = cmap;
         end
     end
-%     src.
 end
-
 function addTransperacy(c_h,alpha)
     for ii=1:size(c_h,1)
         for jj=1:size(c_h,2)
@@ -1171,3 +920,26 @@ function addTransperacy(c_h,alpha)
         end
     end
 end
+%% 
+% _*indentify footer text*_ 
+% 
+% License: <https://github.com/SolavLab/indentify/blob/main/LICENSE>
+% 
+% indentify: An open-source project for exploring the identifiability of 
+% soft-tissue material parameters from noninvasive indentation test and
+% inverse finite-element analysis.
+% 
+% Copyright (C) 2022 Zohar Oddes, Dana Solav, and the indentify contributors
+% 
+% This program is free software: you can redistribute it and/or modify
+% it under the terms of the GNU Affero General Public License as published
+% by the Free Software Foundation, either version 3 of the License, or
+% (at your option) any later version.
+% 
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU Affero General Public License for more details.
+% 
+% You should have received a copy of the GNU Affero General Public License
+% along with this program.  If not, see <https://www.gnu.org/licenses/>.
