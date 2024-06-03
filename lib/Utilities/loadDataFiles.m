@@ -49,7 +49,7 @@ function [test] = loadDataFiles(varargin)
         if user_output_flg
             waitbar(i/numel(test),f1, ['Reading tests (',num2str(i),'/', num2str(numel(test)),')'])
         end
-        if test{i}.runFlag
+        if test{i}.runFlag==1
             % gather data from node_data_files
             if isfield(test{i},'node_data_files')
                 for ii=1:numel(test{i}.node_data_files) % run on each data file

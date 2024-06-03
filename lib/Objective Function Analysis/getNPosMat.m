@@ -14,11 +14,11 @@ function [time_mat, N_pos_mat,N_disp_mat] = getNPosMat(test)
         N_pos_mat(:,:,1) = N_pos_mat(:,:,2)-N_disp_mat(:,:,2);
         % delete data of all nodes that or not on the top and front
         % surfaces
-        not_top_surface_nodes = find(N_pos_mat(:,2,1)~=0); %
-        not_front_surface = find(N_pos_mat(:,3,1)~=0); %
-        rows_to_delete = union(not_top_surface_nodes,not_front_surface);
-        N_disp_mat(rows_to_delete,:,:) = [];
-        N_pos_mat(rows_to_delete,:,:) = [];
+%         not_top_surface_nodes = find(N_pos_mat(:,2,1)~=0); %
+%         not_front_surface = find(N_pos_mat(:,3,1)~=0); %
+%         rows_to_delete = union(not_top_surface_nodes,not_front_surface);
+%         N_disp_mat(rows_to_delete,:,:) = [];
+%         N_pos_mat(rows_to_delete,:,:) = [];
     else
         error('pos_out is not a field of test');
     end  
