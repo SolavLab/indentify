@@ -15,10 +15,15 @@ lineWidth=5;
 lineWidth2=3;
 cMap=viridis(20);
 
+% Change default axes fonts.
+set(0,'DefaultAxesFontName', 'Times New Roman')
+set(0,'DefaultAxesFontSize',fontSize)
+set(0,'defaulttextinterpreter','latex');
+
 % Define analysis settings
-objectiveWeights = [0.8 0 0.2 0];
-Ef = 0.1; %force measurement error (normalized)
-E_disp = 0.05; % displacement measurement error (normalized)
+objectiveWeights = [0.5 0.17 0.17 0.16];
+Ef = 0.01; %force measurement error (normalized)
+E_disp = 0.1; % displacement measurement error (normalized)
 
 %% LOAD EXPERIMENTAL DATA
 default_running_folder = getDefaultRunPath();
@@ -62,32 +67,48 @@ switch exp_data_type
             error('runPath was left unassigned')
         end
         load(fullfile(runPath,'expResults.mat'))
+        
         % IMPORT FORCE DATA AS VECTOR
-        force_exp = [0  0  9 24 42 63 89 116 144 176 207 240 274 311 346.5 384 420.5 457 493 532 567 606 644 680 718];
-        force_exp = -force_exp*9.8 / 4; % Convert [g] to [mN], and account for a quadrant of the simulation
+        fprintf('\n Select the weight_data.mat of the test results as retrieved from DIC_CoordinateSystemUpdate.m\n\n******************\n\n');
+        [~,runPath] = uigetfile(runPath,'Select weight_data.mat');
+        if runPath == 0
+            error('runPath was left unassigned')
+        end
+        load(fullfile(runPath,'weight_data.mat'))
+        force_exp = -weight_data'*9.80665 / 5.1; % Convert [g] to [mN], and account for the data represented by the actual part 
+        
         % IMPORT INDENTATION DEPTH DATA AS VECTOR (helps define must times)
-        depth_exp = [0 0.25 0.5  1 1.5  2 2.5  3 3.5  4 4.5  5 5.5  6 6.5  7 7.5  8 8.5  9 9.5 10 10.5 11 11.5];
+        fprintf('\n Select the indenter_depth.mat of the test results as retrieved from DIC_CoordinateSystemUpdate.m\n\n******************\n\n');
+        [~,runPath] = uigetfile(runPath,'Select indenter_depth.mat');
+        if runPath == 0
+            error('runPath was left unassigned')
+        end
+        load(fullfile(runPath,'indenter_depth.mat'))
+        depth_exp = -indenter_depth;
         timeMust = depth_exp / depth_exp(end);
 end
 
 
-toleranceObjectiveValue = objectiveWeights*[Ef E_disp E_disp E_disp].^2'; %cutoff range
+% toleranceObjectiveValue = objectiveWeights*[Ef E_disp E_disp E_disp].^2'; %cutoff range
+toleranceObjectiveValue = 0.3*1e-2;
 % Material Parameters
 mat_type = 'trans iso Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material'
 %Initial material parameter set
-matParameters.c1 = 50;
+matParameters.c1 = 8.8691;
 matParameters.c2 = 0;
 matParameters.c3 = 0;
-matParameters.c4 = 0.8;
-matParameters.c5 = 35;
+matParameters.c4 = 0;
+matParameters.c5 = 2.0055;
 matParameters.lam_max = 1;
 matParameters.k = 1e3;
+par_names=fieldnames(matParameters);
 
 parNamesToVary = {'c1','c5'};
+[~,parIndicesToVary] = ismember(parNamesToVary,par_names);
 
 %Sphere parameters
 numRefineStepsSphere=2;
-sphereRadius=9.53/2;
+sphereRadius=9.54/2;
 
 %% Control Parameters
 runMode = 'external'; % FEBio run mode - 'external', 'internal'
@@ -118,7 +139,7 @@ maxaug=10;
 
 %% Creating model geometry and mesh
 
-load("indentify\lib\Axisymmetric Indentation\coarse_trueSize.mat")
+load("indentify\lib\Axisymmetric Indentation\coarse3_trueSize.mat")
 % Offset Box
 V(:,3)=V(:,3)-max(V(:,3)); %Box Z location 
 
@@ -171,7 +192,7 @@ run_log.metadata.start_time = datestr(datetime('now','TimeZone','local','Format'
 full_time = tic;
 nParameters = length(fieldnames(matParameters));
 parValuesIni = zeros(1,nParameters);
-par_names=fieldnames(matParameters);
+
 for i_parameter = 1:nParameters
     parValuesIni(i_parameter) = matParameters.(par_names{i_parameter});
 end
@@ -180,7 +201,7 @@ analysis.mat_type = mat_type;
 analysis.matParameters = parValuesIni;
 analysis.MeshGeometry = MeshGeometry;
 analysis.MeshGeometry.Specimen.elementType = elementType;
-analysis.timeMust = timeMust';
+analysis.timeMust = timeMust;
 analysis.sphereDisplacement = sphereDisplacement;
 % Current file name and save path
 modelName = 'tempModel';
@@ -204,23 +225,60 @@ analysis = getLogfileNames(analysis,febio_spec);
 
 if analysis.runFlag == 1
     analysis = loadDataFiles(analysis);
-
+    F_contact_primary = meshStruct.facesBoundary(meshStruct.boundaryMarker==6,:);
+    contact_nodes = unique(F_contact_primary); %only contact surface nodes
+    contact_nodes_inROI = find(nodeList);
+    exp_symmetry_nodes = find(V(contact_nodes_inROI,1)==0);
+    sim_symmetry_nodes = find(V(contact_nodes,1)==0);
+    
+    % Access data
+    exp_def_curve_z = expResults.pos_out.z.data(exp_symmetry_nodes,end);
+    sim_def_curve_z = analysis.pos_out.z.data(sim_symmetry_nodes,end);
+    exp_def_curve_y = expResults.pos_out.y.data(exp_symmetry_nodes,end);
+    sim_def_curve_y = analysis.pos_out.y.data(sim_symmetry_nodes,end);
+    exp_def_curve_x = expResults.pos_out.x.data(exp_symmetry_nodes,end);
+    sim_def_curve_x = analysis.pos_out.x.data(sim_symmetry_nodes,end);
+    force_sim = analysis.indenter_RB_out.Fz.data;
+    
+    hf = cFigure; %Open figure  
+%     title('Indenter Force curves optimisation','FontSize',fontSize);
     % Visualize force-depth curve
-    cFigure; hold on;
+    subplot(2,2,[1 3]); hold on;
     title('Indenter Force curves optimisation','FontSize',fontSize);
-    xlabel('Indenter Depth [%]','FontSize',fontSize); ylabel('Measured Force [N]','FontSize',fontSize); hold on;
-
-    Hn(1)=plot(100*analysis.timeMust,abs(force_exp)/1000,'k-','lineWidth',lineWidth);
+    xlabel('Indenter Depth [\%]','FontSize',fontSize); ylabel('Measured Force [N]','FontSize',fontSize, Interpreter='latex'); hold on;
+    Hf(1)=plot(100*timeMust,abs(force_exp)/1000,'ko','lineWidth',lineWidth);
     view(2); axis tight;  grid on; axis square; axis manual;
-    Hn(2)=plot(100*analysis.timeMust,abs(analysis.indenter_RB_out.Fz.data),'r.-','lineWidth',lineWidth2,'markerSize',markerSize2);
-    legend(Hn,{'Experiment','Simulation'},'Location','northwest');
+    Hf(2)=plot(100*timeMust,abs(force_sim)/1000,'r.-','lineWidth',lineWidth2,'markerSize',markerSize2);
+    legend(Hf,{'Experiment','Simulation'},'Location','northwest');
     set(gca,'FontSize',fontSize);
+
+    subplot(2,2,2); hold on; 
+    % Visualize deformed surface
+    title('Specimen surface curves optimisation','FontSize',fontSize);
+    xlabel('Y [mm]','FontSize',fontSize); ylabel('Z [mm]','FontSize',fontSize); hold on;
+    Hd(1)=plot(exp_def_curve_y,exp_def_curve_z,'k.','lineWidth',lineWidth,'markerSize',markerSize2);
+    view(2); axis tight;  grid on; axis equal;
+    Hd(2)=plot(sim_def_curve_y,sim_def_curve_z,'r.','lineWidth',lineWidth2,'markerSize',markerSize);
+    legend(Hd,{'Experiment','Simulation'},'Location','southeast');
+    set(gca,'FontSize',fontSize);
+    
+    if length(parNamesToVary) == 2
+        subplot(2,2,4); hold on; 
+        % Visualize convergence
+        title('Objective Function Space','FontSize',fontSize);
+        xlabel(parNamesToVary{1},'FontSize',fontSize); ylabel(parNamesToVary{2},'FontSize',fontSize); hold on;
+        Hc=scatter(parValuesIni(parIndicesToVary(1)),parValuesIni(parIndicesToVary(2)),markerSize2,'filled');
+        Hc.CData = 0;
+        xlim([1.5 15]);
+        ylim([0 10]);
+        grid on; colorbar; clim([0 3.5]);
+        set(gca,'FontSize',fontSize);
+    end
     drawnow;
 end
 
 %% Create structures for optimization
 
-[~,parIndicesToVary] = ismember(parNamesToVary,par_names);
 parValuesToVary = parValuesIni(parIndicesToVary);
 % Material structure
 mat_struct.par_names=par_names; %Parameter names
@@ -228,12 +286,17 @@ mat_struct.par_values=parValuesIni; %Parameter values
 mat_struct.par_vary_idx = parIndicesToVary; %Parameter indices
 
 %What should be known to the objective function:
-objectiveStruct.h=Hn(2);
+objectiveStruct.Hf=Hf(2); %Force plot
+objectiveStruct.Hd=Hd(2); %Deformation plot
+objectiveStruct.Hc=Hc; %Convergence plot
+
+objectiveStruct.sim_symmetry_nodes = sim_symmetry_nodes;
 objectiveStruct.force_exp = force_exp;
 [~,pos_data,~] = getNPosMat(analysis);
 objectiveStruct.pos_data = pos_data;
 objectiveStruct.disp_exp = expResults.disp_out;
-objectiveStruct.nodeList = nodeList;
+F_contact_primary = meshStruct.facesBoundary(meshStruct.boundaryMarker==6,:);
+objectiveStruct.nodeList = nodeList(unique(F_contact_primary)); %only contact surface nodes
 % objectiveStruct.strain_exp = expResults.strain;
 objectiveStruct.indenterRadius = sphereRadius;
 objectiveStruct.objectiveWeights = objectiveWeights;
@@ -242,8 +305,10 @@ objectiveStruct.febioAnalysis=analysis;
 objectiveStruct.mat_struct=mat_struct;
 objectiveStruct.parNormFactors=parValuesToVary; %This will normalize the parameters to ones(size(P))
 objectiveStruct.Pb_struct.xx_c=parValuesToVary; %Parameter constraining centre
-objectiveStruct.Pb_struct.xxlim=[parValuesToVary(1)/100 parValuesToVary(1)*10;...
-    parValuesToVary(2)/100     80     ]; %Parameter bounds
+% objectiveStruct.Pb_struct.xxlim=[parValuesToVary(1)/100 parValuesToVary(1)*10;...
+%     parValuesToVary(2)/100     80     ]; %Parameter bounds
+objectiveStruct.Pb_struct.xxlim=[1.5 15;...
+    0     10     ]; %Parameter bounds
 
 
 %Optimisation settings
@@ -338,12 +403,7 @@ analysis = getLogfileNames(analysis,febio_spec);
 if runFlag==1
     % Importing analysis data
     analysis = loadDataFiles(analysis);
-
-    if ~isempty(objectiveStruct.h)
-        objectiveStruct.h.YData=abs(analysis.indenter_RB_out.Fz.data)/1000;
-        drawnow;
-    end
-
+    
     %Derive Fopt
     obj_fun_val = calcObjFun(analysis,objectiveStruct);
     Fforce = obj_fun_val.Ff;
@@ -354,6 +414,27 @@ if runFlag==1
         objectiveWeights(2)*Fdisp_x+...
         objectiveWeights(3)*Fdisp_y+...
         objectiveWeights(4)*Fdisp_z;
+    Fopt=sum((FDev).^2);
+
+    if ~isempty(objectiveStruct.Hf)
+        objectiveStruct.Hf.YData=abs(analysis.indenter_RB_out.Fz.data)/1000; % Kpa*mm^2 = 0.001 N
+        drawnow;
+    end
+    
+    if ~isempty(objectiveStruct.Hd)
+        objectiveStruct.Hd.YData=analysis.pos_out.z.data(objectiveStruct.sim_symmetry_nodes,end); 
+        objectiveStruct.Hd.XData=analysis.pos_out.y.data(objectiveStruct.sim_symmetry_nodes,end); 
+        drawnow;
+    end
+
+    if ~isempty(objectiveStruct.Hc)
+        objectiveStruct.Hc.YData=[objectiveStruct.Hc.YData,P(2)]; 
+        objectiveStruct.Hc.XData=[objectiveStruct.Hc.XData,P(1)];
+        objectiveStruct.Hc.CData=[objectiveStruct.Hc.CData;Fopt];
+        drawnow;
+    end
+
+
 
     switch objectiveStruct.method
         case 1

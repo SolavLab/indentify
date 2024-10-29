@@ -4,11 +4,11 @@ clear; close all; clc;
 %% USER-DEFINED SETTINGS
 % Material Parameters
 mat_type = 'trans iso Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material'
-matParameters.c1 = linspace(1,30,9); % Range of first material parameter (scalar/vector)
-matParameters.c2 = linspace(-1,1,9); % Range of second material parameter (scalar/vector)
+matParameters.c1 = linspace(8.3*0.5,8.3*1.5,9); % Range of first material parameter (scalar/vector)
+matParameters.c2 = linspace(0,0,1); % Range of second material parameter (scalar/vector)
 matParameters.c3 = linspace(0,0,1); % Range of third material parameter (scalar/vector)
 matParameters.c4 = linspace(0,0,1); % Range of fourth material parameter (scalar/vector)
-matParameters.c5 = linspace(12,50,9); % Range of fifth material parameter (scalar/vector)
+matParameters.c5 = linspace(2/10,2*19/10,9); % Range of fifth material parameter (scalar/vector)
 % matParameters.P6 = linspace(1,1.1,1);
 matParameters.lam_max = 1;
 matParameters.k = 1e3; % Range of bulk material parameter multiplier (scalar/vector)

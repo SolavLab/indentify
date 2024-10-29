@@ -6,15 +6,14 @@
 %%
 clear; close all; clc
 
-saveOn=1;
+saveOn=0;
 
 % Plot settings
 fontSize=15;
-faceAlpha1=0.8;
+faceAlpha1=0.6;
 faceAlpha2=0.2;
 markerSize=40;
 markerSize2=5;
-lineWidth=3;
 
 %% Import reference configuration
 % The input for the reference mesh configuration should come with:
@@ -25,6 +24,8 @@ lineWidth=3;
 [file1,runPath1]=uigetfile('','Select reference mesh');
 load(fullfile(runPath1,file1)); %ref_mesh.mat (meshStruct)
 V = ref_mesh.nodes;
+V(:,1) = V(:,1)*0.95;
+V(:,2) = V(:,2)*0.87;
 F = ref_mesh.faces;
 contact_nodes = unique(F); % Use only nodes on contact surface
 
@@ -59,13 +60,24 @@ DIC3D.disp(:,1,:) = reshapeFieldData(P, 'transU', nImages, nPoints);
 DIC3D.disp(:,2,:) = reshapeFieldData(P, 'transV', nImages, nPoints);
 DIC3D.disp(:,3,:) = reshapeFieldData(P, 'transW', nImages, nPoints);
 
+[file3,runPath3]=uigetfile('*.mat','Select origin translation',runPath2);
+if isequal(file3, 0)
+    disp('No file selected, continuing without loading origin translation.');
+else
+    % Load the file if one was selected
+    load(fullfile(runPath3, file3), 'origin');
+    disp('Origin translation loaded successfully.');
+    DIC3D.pos(:,1,:) = DIC3D.pos(:,1,:) - origin(:,1);
+    DIC3D.pos(:,2,:) = DIC3D.pos(:,2,:) - origin(:,2);
+    DIC3D.pos(:,3,:) = DIC3D.pos(:,3,:) - origin(:,3);
+end
 
 %% Determine range of contact nodes to consider
 % This section handles the node selection that will be evaluated with the
 % given DIC data. Mesh nodes that don't have enough DIC data around them
 % are not going to give reliable results and must be ignored.
 
-close all; clc
+close all;
 
 % Find average distance between points in cloud to asses density of DIC results
 dMat = pdist2(squeeze(DIC3D.pos(1,:,:))',squeeze(DIC3D.pos(1,:,:))');
@@ -166,9 +178,9 @@ end
 %% Interpolation of experimental results
 time = linspace(0,1,nImages);
 % Position results in (nNodes)x(nImages)
-expResults.pos_out.x.data = B*squeeze(DIC3D.disp(1:nImages,1,:))';
-expResults.pos_out.y.data = B*squeeze(DIC3D.disp(1:nImages,2,:))';
-expResults.pos_out.z.data = B*squeeze(DIC3D.disp(1:nImages,3,:))';
+expResults.pos_out.x.data = B*squeeze(DIC3D.pos(1:nImages,1,:))';
+expResults.pos_out.y.data = B*squeeze(DIC3D.pos(1:nImages,2,:))';
+expResults.pos_out.z.data = B*squeeze(DIC3D.pos(1:nImages,3,:))';
 expResults.pos_out.time = time;
 expResults.pos_out.ind = contact_nodes_inROI;
 % Displacement results in (nNodes)x(nImages)
@@ -206,15 +218,16 @@ end
 
 % Create basic view and store graphics handle to initiate animation
 hf=cFigure; %Open figure
-gtitle('DIC results: Press play to animate');
-title('Displacements','Interpreter','Latex')
-hp1=scatterV(V_DEF(:,:,end),'filled'); %%Handle for object to adjust
+% gtitle('DIC results: Press play to animate');
+% title('Displacements','Interpreter','Latex')
+hp1=scatterV(V_DEF(:,:,end),'filled'); %Handle for mesh data to adjust
 hp1.SizeData=markerSize;
 
 hold on
-hp2=scatterV(DIC_pos(:,:,end),'filled'); %Handle for object to adjust
+hp2=scatterV(DIC_pos(:,:,end),'filled'); %Handle for DIC to adjust
 hp2.SizeData=markerSize2;
 hp2.MarkerFaceAlpha=faceAlpha1;
+hp2.CData = [1,1,1]*0.7;
 
 F_contact_animate = F;
 F_contact_animate = F_contact_animate(all(ismember(F, contact_nodes_inROI),2),:);
@@ -225,8 +238,8 @@ axis(axisLim(DIC3D.pos)); %Set axis limits statically
 clim([0 influenceRadius/2]);
 cMap = interp1([0;1],[0 0 1; 1 0 0],linspace(0,1,256));
 colormap(cMap)
-hColorbar = colorbar;
-title(hColorbar, 'Node position error')
+% hColorbar = colorbar;
+% title(hColorbar, 'Node position error')
 
 % Set up animation features
 animStruct.Time=timeVec; %The time vector
@@ -244,6 +257,7 @@ drawnow;
 if saveOn
     save(fullfile(runPath2,'barycentric_coordinates.mat'),'B');
     save(fullfile(runPath2,'expResults.mat'),'expResults','nodeList');
+    disp('expResults.mat saved successfully.');
 end
 
 %% Functions

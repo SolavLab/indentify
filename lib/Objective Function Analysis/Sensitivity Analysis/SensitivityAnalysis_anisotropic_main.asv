@@ -97,11 +97,11 @@ for dir_ind = 1:numel(dir_name_carray)
     % * For converged simulations the value will be calculated
     F = zeros(size(X))-inf; TF = zeros(size(X));
     for t=1:nSteps
-        T = strcat('t_',num2str(t));  % Define field name
-        objectiveValues.Ff.(T)=F;
-        objectiveValues.Fu_x.(T)=F;
-        objectiveValues.Fu_y.(T)=F;
-        objectiveValues.Fu_z.(T)=F;
+        timeStep = strcat('t_',num2str(t));  % Define field name
+        objectiveValues.Ff.(timeStep)=F;
+        objectiveValues.Fu_x.(timeStep)=F;
+        objectiveValues.Fu_y.(timeStep)=F;
+        objectiveValues.Fu_z.(timeStep)=F;
     end
 
     % Get Experimental data
@@ -205,11 +205,11 @@ for dir_ind = 1:numel(dir_name_carray)
 
         % Export values for Hessian calculations
         for t=1:nSteps % Loop over the time steps
-            T = strcat('t_',num2str(t));  % Define field name
-            objectiveValues.Ff.(T)(i) = test{i}.obj_fun_val.Ff(t+1);
-            objectiveValues.Fu_x.(T)(i) = test{i}.obj_fun_val.Fu_x(t+1);
-            objectiveValues.Fu_y.(T)(i) = test{i}.obj_fun_val.Fu_y(t+1);
-            objectiveValues.Fu_z.(T)(i) = test{i}.obj_fun_val.Fu_z(t+1);
+            timeStep = strcat('t_',num2str(t));  % Define field name
+            objectiveValues.Ff.(timeStep)(i) = test{i}.obj_fun_val.Ff(t+1);
+            objectiveValues.Fu_x.(timeStep)(i) = test{i}.obj_fun_val.Fu_x(t+1);
+            objectiveValues.Fu_y.(timeStep)(i) = test{i}.obj_fun_val.Fu_y(t+1);
+            objectiveValues.Fu_z.(timeStep)(i) = test{i}.obj_fun_val.Fu_z(t+1);
         end
     end
     % Check if there are any NaN values in the data, and if so interpolate
@@ -217,29 +217,29 @@ for dir_ind = 1:numel(dir_name_carray)
     % adjacent data, try interpolating using a different dimension.
     TF_temp = TF;
     for dim=1:ndims(X)
-        F = objectiveValues.Ff.(T);
+        F = objectiveValues.Ff.(timeStep);
         idx = find(isnan(F));
         first = true;
         if ~isempty(idx)
             for t=1:nSteps
-                T = strcat('t_',num2str(t));
-                [objectiveValues.Ff.(T),TF_temp] = fillmissing(objectiveValues.Ff.(T),'linear',dim,'EndValues','nearest');
-                objectiveValues.Fu_x.(T) = fillmissing(objectiveValues.Fu_x.(T),'linear',dim,'EndValues','nearest');
-                objectiveValues.Fu_y.(T) = fillmissing(objectiveValues.Fu_y.(T),'linear',dim,'EndValues','nearest');
-                objectiveValues.Fu_z.(T) = fillmissing(objectiveValues.Fu_z.(T),'linear',dim,'EndValues','nearest');
+                timeStep = strcat('t_',num2str(t));
+                [objectiveValues.Ff.(timeStep),TF_temp] = fillmissing(objectiveValues.Ff.(timeStep),'linear',dim,'EndValues','nearest');
+                objectiveValues.Fu_x.(timeStep) = fillmissing(objectiveValues.Fu_x.(timeStep),'linear',dim,'EndValues','nearest');
+                objectiveValues.Fu_y.(timeStep) = fillmissing(objectiveValues.Fu_y.(timeStep),'linear',dim,'EndValues','nearest');
+                objectiveValues.Fu_z.(timeStep) = fillmissing(objectiveValues.Fu_z.(timeStep),'linear',dim,'EndValues','nearest');
                 if first
                     TF=TF_temp; % save the initial map of failed simulations
                     first=false;
                 end
             end
             for i=1:length(idx) %check all interpolated data and reset
-                if isinf(objectiveValues.Ff.(T)(idx(i)))
+                if isinf(objectiveValues.Ff.(timeStep)(idx(i)))
                     for t=1:nSteps
-                        T = strcat('t_',num2str(t));
-                        objectiveValues.Ff.(T)(idx(i))=NaN;
-                        objectiveValues.Fu_x.(T)(idx(i))=NaN;
-                        objectiveValues.Fu_y.(T)(idx(i))=NaN;
-                        objectiveValues.Fu_z.(T)(idx(i))=NaN;
+                        timeStep = strcat('t_',num2str(t));
+                        objectiveValues.Ff.(timeStep)(idx(i))=NaN;
+                        objectiveValues.Fu_x.(timeStep)(idx(i))=NaN;
+                        objectiveValues.Fu_y.(timeStep)(idx(i))=NaN;
+                        objectiveValues.Fu_z.(timeStep)(idx(i))=NaN;
                     end
                 end
             end
@@ -261,7 +261,7 @@ for dir_ind = 1:numel(dir_name_carray)
     n_accuracy = min(size(X))-1;
     if mod(n_accuracy,2); n_accuracy=n_accuracy-1; end %if n is odd, take the next smallest even number
     if n_accuracy>8; n_accuracy=8; end
-    n_accuracy = 2; % uncomment this line to ovverride automatic accuracy
+%     n_accuracy = 2; % uncomment this line to override automatic accuracy
 
     %normalize parameter space
     num_dim = ndims(X); %the number of dimensions
@@ -276,13 +276,26 @@ for dir_ind = 1:numel(dir_name_carray)
         X_norm{i} = X{i}./mid_value;
     end
 
-    % Determine objective function shapes of each test (deepest indentation)
-    Hf = getHessian(X_norm,objectiveValues.Ff.t_5,n_accuracy);
-    Hx = getHessian(X_norm,objectiveValues.Fu_x.t_5,n_accuracy);
-    Hy = getHessian(X_norm,objectiveValues.Fu_y.t_5,n_accuracy);
-    Hz = getHessian(X_norm,objectiveValues.Fu_z.t_5,n_accuracy);
-    Ef = 0.01; %force measurement error (normalized)
-    E_disp = 0.1; % displacement measurement error (normalized)
+    objectiveValues.Ff.sumOfSquares=F*0;
+    objectiveValues.Fu_x.sumOfSquares=F*0;
+    objectiveValues.Fu_y.sumOfSquares=F*0;
+    objectiveValues.Fu_z.sumOfSquares=F*0;
+
+    for t=1:nSteps
+        timeStep = strcat('t_',num2str(t));
+        objectiveValues.Ff.sumOfSquares = objectiveValues.Ff.sumOfSquares + objectiveValues.Ff.(timeStep);
+        objectiveValues.Fu_x.sumOfSquares = objectiveValues.Fu_x.sumOfSquares + objectiveValues.Fu_x.(timeStep);
+        objectiveValues.Fu_y.sumOfSquares = objectiveValues.Fu_y.sumOfSquares + objectiveValues.Fu_y.(timeStep);
+        objectiveValues.Fu_z.sumOfSquares = objectiveValues.Fu_z.sumOfSquares + objectiveValues.Fu_z.(timeStep);
+    end
+
+    % Determine objective function shapes of each test
+    Hf = getHessian(X_norm,objectiveValues.Ff.sumOfSquares,n_accuracy);
+    Hx = getHessian(X_norm,objectiveValues.Fu_x.sumOfSquares,n_accuracy);
+    Hy = getHessian(X_norm,objectiveValues.Fu_y.sumOfSquares,n_accuracy);
+    Hz = getHessian(X_norm,objectiveValues.Fu_z.sumOfSquares,n_accuracy);
+    Ef = 0.1; %force measurement error (normalized)
+    E_disp = 0.03; % displacement measurement error (normalized)
     p=zeros(num_dim,4); %initialize best objective function data matrix
     err=zeros(num_dim,1);
     std=err;
@@ -290,11 +303,12 @@ for dir_ind = 1:numel(dir_name_carray)
     for i=1:num_dim
         % Define the objective function as a function handle
         s = struct ('type','()','subs',{{i,i}});
-        objfun = @(x) abs(subsref(inv(x(1)*Hf + x(2)*Hx + x(3)*Hy + x(4)*Hz),s));
+        objfun = @(x) sqrt(x*[Ef E_disp E_disp E_disp].^2')* ...
+            sqrt(2*subsref(inv(x(1)*Hf + x(2)*Hx + x(3)*Hy + x(4)*Hz),s));
         % Define the constraint function as a function handle
-        constrfun = @(x) deal(-10*subsref(inv(x(1)*Hf + x(2)*Hx + x(3)*Hy + x(4)*Hz),s), x(1) + x(2) + x(3) + x(4) - 1);
+        constrfun = @(x) deal(-subsref(inv(x(1)*Hf + x(2)*Hx + x(3)*Hy + x(4)*Hz),s), x(1) + x(2) + x(3) + x(4) - 1);
         % Define an initial guess for the weights
-        x0 = [0.25 0.25 0.25 0.25];
+        x0 = [0.1 0.4 0.4 0.1];
         % Define some options for the solver
         options = optimoptions('fmincon','Display','iter');
         % Define the lower and upper bounds for the weights
@@ -303,18 +317,19 @@ for dir_ind = 1:numel(dir_name_carray)
         % Call the fmincon function with the bounds
         [p(i,:),fval] = fmincon(objfun,x0,[],[],[],[],lb,ub,constrfun,options);
         std(i) = sqrt(p(i,:)*[Ef E_disp E_disp E_disp].^2');
-        err(i)=std(i)*sqrt(2*fval);
+%         err(i)=std(i)*sqrt(2*fval);
+        err(i)=fval;
     end
     % Display the optimal results for each parameter
     disp(mat_type)
     for i=1:num_dim
         % objective function shape to use
-        OF = p(i,1)*objectiveValues.Ff.t_5+p(i,2)*objectiveValues.Fu_x.t_5+p(i,3)*objectiveValues.Fu_y.t_5+p(i,4)*objectiveValues.Fu_z.t_5;
+        OF = p(i,1)*objectiveValues.Ff.sumOfSquares+p(i,2)*objectiveValues.Fu_x.sumOfSquares+p(i,3)*objectiveValues.Fu_y.sumOfSquares+p(i,4)*objectiveValues.Fu_z.sumOfSquares;
         H = getHessian(X_norm,OF,n_accuracy);
         [V,K] = eig(H);
         varNames={'Hessian','Eigenvectors','Eigenvalues'};
-        T = table(H,V,K,'VariableNames',varNames);
-        disp(T)
+        timeStep = table(H,V,K,'VariableNames',varNames);
+        disp(timeStep)
         fprintf('Error of "%s" is ±%d (±%.2f%%)\n',run_log.metadata.varried_parameters{i},err(i),100*err(i));
         fprintf('Where the optimal objective function uses %.2f*Ff+%.2f*Fu_x+%.2f*Fu_y+%.2f*Fu_z\nAnd the standard deviation is S=%.2f\n\n',p(i,:),std(i));
     end
@@ -329,11 +344,11 @@ end
 fontSize = 15;
 % Initialize variables and parameters
 close all
-operateOn = [1,3]; % choose the dimensions that the local hessian will operate on!
-idealParam = 1; % choose objective function shape to use
+operateOn = [1,2]; % choose the dimensions that the local hessian will operate on!
+idealParam = 2; % choose objective function shape to use
 idealP = p(idealParam,:);
-OF = idealP(1)*objectiveValues.Ff.t_5+idealP(2)*objectiveValues.Fu_x.t_5+idealP(3)*objectiveValues.Fu_y.t_5+idealP(4)*objectiveValues.Fu_z.t_5;
-OF = 0*objectiveValues.Ff.t_5+0*objectiveValues.Fu_x.t_5+1*objectiveValues.Fu_y.t_5+0*objectiveValues.Fu_z.t_5;
+OF = idealP(1)*objectiveValues.Ff.sumOfSquares+idealP(2)*objectiveValues.Fu_x.sumOfSquares+idealP(3)*objectiveValues.Fu_y.sumOfSquares+idealP(4)*objectiveValues.Fu_z.sumOfSquares;
+% OF = 0*objectiveValues.Ff.t_5+0*objectiveValues.Fu_x.t_5+1*objectiveValues.Fu_y.t_5+0*objectiveValues.Fu_z.t_5;
 % get the names of the parameters
 varried_parameters = run_log.metadata.varried_parameters;
 fields = run_log.metadata.fields;
