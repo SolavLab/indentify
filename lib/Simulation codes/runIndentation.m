@@ -1,5 +1,5 @@
 %% NOTICE: the following code is an adaptation of DEMO_febio_0006_sphere_indentation.m
-%Copyright (C) 2006-2021 Kevin Mattheus Moerman and the GIBBON contributors,
+%Copyright (C) 2006-2023 Kevin Mattheus Moerman and the GIBBON contributors,
 %taken from the GIBBON Toolbox (www.gibboncode.org) under the license
 %provided therein:
 %(https://github.com/gibbonCode/GIBBON/blob/master/LICENSE).

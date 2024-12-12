@@ -24,8 +24,8 @@ markerSize2=5;
 [file1,runPath1]=uigetfile('','Select reference mesh');
 load(fullfile(runPath1,file1)); %ref_mesh.mat (meshStruct)
 V = ref_mesh.nodes;
-V(:,1) = V(:,1)*0.95;
-V(:,2) = V(:,2)*0.87;
+% V(:,1) = V(:,1)*0.95;
+% V(:,2) = V(:,2)*0.87;
 F = ref_mesh.faces;
 contact_nodes = unique(F); % Use only nodes on contact surface
 
@@ -98,9 +98,7 @@ for iNode=1:numel(contact_nodes)
     end
 end
 
-continueRunning = true;
-
-while continueRunning
+while true
     try
         % Since using the GUI might cause errors:
 

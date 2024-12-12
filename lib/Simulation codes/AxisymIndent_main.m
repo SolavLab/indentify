@@ -5,8 +5,8 @@ clc
 %% USER-DEFINED SETTINGS
     % Material Parameters
     mat_type = 'OG'; % 'OG','OM','MR','NH'
-    P1 = [1:5:51]*1e-3; % Range of first material parameter (scalar/vector)
-    P2 = [1:3:37]; % Range of second material parameter (scalar/vector)
+    P1 = [1:8:51]*1e-3; % Range of first material parameter (scalar/vector)
+    P2 = [1:6:37]; % Range of second material parameter (scalar/vector)
     k_factor = 1000; % Range of bulk material parameter multiplier (scalar/vector)
     % Specimen parameters
     R_sp = 60; % specimen radius (mm)

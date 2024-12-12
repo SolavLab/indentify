@@ -21,9 +21,11 @@ set(0,'DefaultAxesFontSize',fontSize)
 set(0,'defaulttextinterpreter','latex');
 
 % Define analysis settings
-objectiveWeights = [0.5 0.17 0.17 0.16];
-Ef = 0.01; %force measurement error (normalized)
-E_disp = 0.1; % displacement measurement error (normalized)
+objectiveWeights = [0.55 0.15 0.15 0.15];
+
+mesh_path = 'C:\Users\user\OneDrive - Technion\Amit-Dana shared folder\Research\Parameter Identification\Mesh Anlysis\100x100x60 cube\mesh_2.mat';
+% mesh_path = 'C:\Users\user\OneDrive - Technion\Amit-Dana shared folder\Research\Parameter Identification\Mesh Anlysis\old\coarse3_trueSize.mat';
+load(mesh_path)
 
 %% LOAD EXPERIMENTAL DATA
 default_running_folder = getDefaultRunPath();
@@ -53,44 +55,31 @@ switch exp_data_type
         force_exp = ref_test.indenter_RB_out.Fz.data;
         depth_exp = ref_test.indenter_RB_out.z.data;
         depth_exp(2:end) = -(depth_exp(2:end)-ref_test.MeshGeometry.Indenter.center_of_mass(3));
-        timeMust = depth_exp / depth_exp(end);
+        timeMust = depth_exp' / depth_exp(end);
 
-        n = size(ref_test.pos_out.ind, 1); % Determine the number of nodes
-        defaultNodeList = true(1, n); % Default nodeList as a logical array of ones
-        nodeList = defaultNodeList;
+        n = size(V, 1); % Determine the number of nodes
+        nodeList = false(1, n); % Default nodeList as a logical array of ones
+        nodeList(ref_test.pos_out.ind) = true;
 
     case 'Experimental Data'
         % IMPORT DIC DATA AS RETRIEVED FROM iFEA_barycentric_coordinates
-        fprintf('\n Select the expResults.mat of the test results as retrieved from iFEA_barycentric_coordinates.m\n\n******************\n\n');
-        [~,runPath] = uigetfile(default_running_folder,'Select expResults.mat');
+        fprintf('\n Select the .mat files of the test results as retrieved from iFEA_barycentric_coordinates.m\n\n******************\n\n');
+        [file,runPath] = uigetfile('*.mat', 'Select Experimental Results Files', 'MultiSelect', 'on');
         if runPath == 0
             error('runPath was left unassigned')
         end
-        load(fullfile(runPath,'expResults.mat'))
-        
-        % IMPORT FORCE DATA AS VECTOR
-        fprintf('\n Select the weight_data.mat of the test results as retrieved from DIC_CoordinateSystemUpdate.m\n\n******************\n\n');
-        [~,runPath] = uigetfile(runPath,'Select weight_data.mat');
-        if runPath == 0
-            error('runPath was left unassigned')
+        for i = 1:length(file)
+            load(fullfile(runPath,file{i}))
         end
-        load(fullfile(runPath,'weight_data.mat'))
         force_exp = -weight_data'*9.80665 / 4; % Convert [g] to [mN], and account for quarter of problem
-        
-        % IMPORT INDENTATION DEPTH DATA AS VECTOR (helps define must times)
-        fprintf('\n Select the indenter_depth.mat of the test results as retrieved from DIC_CoordinateSystemUpdate.m\n\n******************\n\n');
-        [~,runPath] = uigetfile(runPath,'Select indenter_depth.mat');
-        if runPath == 0
-            error('runPath was left unassigned')
-        end
-        load(fullfile(runPath,'indenter_depth.mat'))
         depth_exp = -indenter_depth;
         timeMust = depth_exp / depth_exp(end);
+
 end
 
 
 % toleranceObjectiveValue = objectiveWeights*[Ef E_disp E_disp E_disp].^2'; %cutoff range
-toleranceObjectiveValue = 0.3*1e-2;
+toleranceObjectiveValue = 3*1e-2;
 % Material Parameters
 mat_type = 'trans iso Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material'
 %Initial material parameter set
@@ -98,7 +87,7 @@ matParameters.c1 = 5;
 matParameters.c2 = 0;
 matParameters.c3 = 0;
 matParameters.c4 = 0;
-matParameters.c5 = 0.2;
+matParameters.c5 = 20;
 matParameters.lam_max = 1;
 matParameters.k = 1e3;
 par_names=fieldnames(matParameters);
@@ -112,11 +101,6 @@ sphereRadius=9.54/2;
 
 %% Control Parameters
 runMode = 'external'; % FEBio run mode - 'external', 'internal'
-% select analysis type (currently only indentation is implemented)
-analysis_type = questdlg('Analysis type','Analysis type','Indentation','Tension', 'Compression', 'Tension');
-if isempty(analysis_type)
-    error('analysis_type was left unassigned')
-end
 
 % Retrieve/Assign default run path for indetify's calculations
 default_running_folder = getDefaultRunPath();
@@ -139,11 +123,10 @@ maxaug=10;
 
 %% Creating model geometry and mesh
 
-load("indentify\lib\Axisymmetric Indentation\coarse3_trueSize.mat")
 % Offset Box
 V(:,3)=V(:,3)-max(V(:,3)); %Box Z location 
-V(:,1) = V(:,1)*0.95;
-V(:,2) = V(:,2)*0.87;
+V(:,1) = V(:,1);
+V(:,2) = V(:,2);
 %Convert elements to faces
 [F,~]=element2patch(E,[],'hex8');
 
@@ -188,7 +171,7 @@ MeshGeometry.Indenter.center_of_mass=mean(V2,1);
 MeshGeometry.Indenter.radius = sphereRadius;
 
 %% Simulation setup and execution
-run_log.metadata.start_time_raw = now;
+run_log.metadata.start_time_raw = datetime('now');
 run_log.metadata.start_time = datestr(datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss Z'));
 full_time = tic;
 nParameters = length(fieldnames(matParameters));
@@ -213,12 +196,8 @@ analysis.runMode = runMode;
 tic
 % Send (my_param,modelName,savePath) to appropriate
 % GIBBON constructor and execution function
-switch analysis_type
-    case 'Tension'
-    case 'Compression'
-    case 'Indentation'
-        [febio_spec,febioAnalysis,runFlag] = runAnisotropicIndentation(analysis,1);
-end
+
+[febio_spec,febioAnalysis,runFlag] = runAnisotropicIndentation(analysis,1);
 
 analysis.runFlag = runFlag;
 [~,analysis.model_name,~] = fileparts(febioAnalysis.run_logname);
@@ -271,11 +250,13 @@ if analysis.runFlag == 1
         Hc=scatter(parValuesIni(parIndicesToVary(1)),parValuesIni(parIndicesToVary(2)),markerSize2,'filled');
         Hc.CData = 0;
         xlim([1.5 15]);
-        ylim([0 10]);
+        ylim([0 500]);
         grid on; colorbar; clim([0 3.5]);
         set(gca,'FontSize',fontSize);
     end
     drawnow;
+else
+    error('SimulationError:RunFailed', 'The simulation failed to run. Stopping the code execution.');
 end
 
 %% Create structures for optimization
@@ -309,7 +290,7 @@ objectiveStruct.Pb_struct.xx_c=parValuesToVary; %Parameter constraining centre
 % objectiveStruct.Pb_struct.xxlim=[parValuesToVary(1)/100 parValuesToVary(1)*10;...
 %     parValuesToVary(2)/100     80     ]; %Parameter bounds
 objectiveStruct.Pb_struct.xxlim=[1.5 15;...
-    0     10     ]; %Parameter bounds
+    0     500     ]; %Parameter bounds
 
 
 %Optimisation settings
@@ -400,13 +381,15 @@ analysis.runFlag = runFlag;
 [~,analysis.model_name,~] = fileparts(febioAnalysis.run_logname);
 analysis = getLogfileNames(analysis,febio_spec);
 %pause(0.1);
+timeMust = analysis.timeMust;
+FDev = zeros(1,length(timeMust));
 
 if runFlag==1
     % Importing analysis data
     analysis = loadDataFiles(analysis);
     
     %Derive Fopt
-    obj_fun_val = calcObjFun(analysis,objectiveStruct);
+    obj_fun_val = calcObjFun_anisotropic_indent(analysis,objectiveStruct);
     Fforce = obj_fun_val.Ff;
     Fdisp_x = obj_fun_val.Fu_x;
     Fdisp_y = obj_fun_val.Fu_y;

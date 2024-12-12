@@ -1,4 +1,4 @@
-function [obj_val] = calcObjFun(test,objectiveStruct)
+function [obj_val] = calcObjFun_anisotropic_indent(test,objectiveStruct)
 
 pos_data = objectiveStruct.pos_data; % (Nnodes)x3
 

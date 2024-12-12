@@ -1,5 +1,5 @@
 %% NOTICE: the following code is an adaptation of DEMO_febio_0006_sphere_indentation
-%Copyright (C) 2006-2021 Kevin Mattheus Moerman and the GIBBON contributors,
+%Copyright (C) 2006-2023 Kevin Mattheus Moerman and the GIBBON contributors,
 %taken from the GIBBON Toolbox (www.gibboncode.org) under the license
 %provided therein:
 %(https://github.com/gibbonCode/GIBBON/blob/master/LICENSE).
@@ -32,7 +32,6 @@ E1=MeshGeometry.Specimen.elements; %The elements
 V1=MeshGeometry.Specimen.nodes; %The nodes (vertices)
 Fb1=MeshGeometry.Specimen.facesBoundary; %The boundary faces
 Cb1=MeshGeometry.Specimen.boundaryMarker; %The "colors" or labels for the boundary faces
-elementMaterialIndices=ones(size(E1,1),1); %Element material indices
 E2=MeshGeometry.Indenter.elements; %The elements
 V2=MeshGeometry.Indenter.nodes; %The nodes (vertices)
 elementType = MeshGeometry.Specimen.elementType; % hex20 / hex8
@@ -80,6 +79,13 @@ switch my_param.mat_type
         c1=my_param.matParameters(1); %Shear-modulus-like parameter
         m1=my_param.matParameters(2); %Material parameter setting degree of non-linearity
         ksi=c1*10; %Fiber "modulus"
+        alphaPar=my_param.matParameters(3);
+        beta=my_param.matParameters(4);
+        k_factor=my_param.matParameters(5); %Bulk modulus factor
+        k=0.5.*(c1+ksi)*k_factor; %Bulk modulus
+    case 'neo-Hookean fiber reinforced'
+        c1=my_param.matParameters(1); %Shear-modulus-like parameter
+        ksi=my_param.matParameters(2); %Fiber "modulus"
         alphaPar=my_param.matParameters(3);
         beta=my_param.matParameters(4);
         k_factor=my_param.matParameters(5); %Bulk modulus factor
@@ -177,11 +183,12 @@ febio_spec.Control.time_stepper.opt_iter=opt_iter;
 febio_spec.Control.output_level='OUTPUT_MUST_POINTS';
 
 %% Material section
+materialName1='Material1';
+febio_spec.Material.material{1}.ATTR.name=materialName1;
+
 switch my_param.mat_type
     case 'trans iso Mooney-Rivlin' % Transversly Isotropic Mooney-Rivlin
         k_tru=0.5*c1*k; %Bulk modulus = (initial shear modulus)x(k_factor)
-        materialName1='Material1';
-        febio_spec.Material.material{1}.ATTR.name=materialName1;
         febio_spec.Material.material{1}.ATTR.type='trans iso Mooney-Rivlin';
         febio_spec.Material.material{1}.ATTR.id=1;
         febio_spec.Material.material{1}.c1=c1;
@@ -195,8 +202,6 @@ switch my_param.mat_type
         febio_spec.Material.material{1}.fiber=[0,1,0];
     case 'trans iso Veronda-Westmann' % Transversly Isotropic Verdona-Westmann
         k_tru=k; %Bulk modulus = (initial shear modulus)x(k_factor)
-        materialName1='Material1';
-        febio_spec.Material.material{1}.ATTR.name=materialName1;
         febio_spec.Material.material{1}.ATTR.type='trans iso Veronda-Westmann';
         febio_spec.Material.material{1}.ATTR.id=1;
         febio_spec.Material.material{1}.c1=c1;
@@ -209,8 +214,6 @@ switch my_param.mat_type
         febio_spec.Material.material{1}.fiber.type='vector';
         febio_spec.Material.material{1}.fiber=[0,1,0];
     case 'ogden material' % Ogden with fibers
-        materialName1='Material1';
-        febio_spec.Material.material{1}.ATTR.name=materialName1;
         febio_spec.Material.material{1}.ATTR.type='solid mixture';
         febio_spec.Material.material{1}.ATTR.id=1;
 
@@ -221,6 +224,24 @@ switch my_param.mat_type
         febio_spec.Material.material{1}.solid{1}.c2=c1;
         febio_spec.Material.material{1}.solid{1}.m2=-m1;
         febio_spec.Material.material{1}.solid{1}.cp=k;
+
+        %The passive fiber component
+        febio_spec.Material.material{1}.solid{2}.ATTR.type='fiber-exp-pow';
+        febio_spec.Material.material{1}.solid{2}.ksi=ksi;
+        febio_spec.Material.material{1}.solid{2}.alpha=alphaPar;
+        febio_spec.Material.material{1}.solid{2}.beta=beta;
+        febio_spec.Material.material{1}.solid{2}.fiber.ATTR.type='vector';
+        febio_spec.Material.material{1}.solid{2}.fiber.VAL=[0 1 0];
+
+    case 'neo-Hookean fiber reinforced' % Ogden with fibers
+        febio_spec.Material.material{1}.ATTR.type='solid mixture';
+        febio_spec.Material.material{1}.ATTR.id=1;
+
+        %Solid component
+        febio_spec.Material.material{1}.solid{1}.ATTR.type='Mooney-Rivlin';
+        febio_spec.Material.material{1}.solid{1}.c1=c1;
+        febio_spec.Material.material{1}.solid{1}.c2=0;
+        febio_spec.Material.material{1}.solid{1}.k=k;
 
         %The passive fiber component
         febio_spec.Material.material{1}.solid{2}.ATTR.type='fiber-exp-pow';

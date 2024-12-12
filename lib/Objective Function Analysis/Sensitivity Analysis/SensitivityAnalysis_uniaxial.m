@@ -3,17 +3,17 @@
 clear; close all; clc;
 
 %% Post-processing controls  <<<<< User-specified
+
 colormap_data_field ='Fval_contour';%'Fval_surface'; %'Fval_contour','grad_mag_contour','scatter3Fval'
-normalize_param = 1; % flag for normalizing the material parameters by baseline values
-eta_arr = [0,0.25,0.5,0.75,1]; % values of eta to include in post-processing
-F_pos_version = 2;   % nodal wieghts calculation mode (outdated)
+
+% Construct cell arrays for "by exp_params_carry (must be in same
+% structure)" if same analysis is to be run many times.
+exp_params_carray = {}; mat_type_carray = {};
+exp_params_carray{end+1}=[12.000000000000002, 4.5, 1000.0]; mat_type_carray{end+1} = 'Mooney-Rivlin';
+
 %% Specify analysis folders, baseline parameters and material model names  <<<<< User-specified
-dir_name_carray = {}; % dir_name_carray{k} - runPath directory of k'th analysis
-exp_params_carray = {}; % exp_params_carry{k} - baseline parameters for the k'th analysis
-mat_type_carray = {}; % mat_type_carray{k} - name of material model used in the k'th analysis (currently manual)
+
 % % % % % % % % % % % EDIT AS NEEDED % % % % % % % % % % % <<<<< User-specified (START)
-% TIP: follow this template to construct the cell arrays above -
-% dir_name_carray{end+1} = runPath; exp_params_carray{end+1} = [p1*,p2*,k_factor*(optional)]; mat_type_carray{end+1} = material-model-name;
 
 % Retrieve/Assign default run path for indetify's calculations
 default_running_folder = getDefaultRunPath();
@@ -23,9 +23,6 @@ runPath = uigetdir(default_running_folder,'Select Running Folder');
 if runPath == 0
     error('runPath was left unassigned')
 end
-% Construct cell arrays
-exp_params_carray{end+1}=[0.1, 1.0, 5.0, 35.0, 60.0, 1.3, 1000.0]; mat_type_carray{end+1} = 'MR';
-exp_params_carray{end+1}=[0.001, 37.0, 5.0, 25.0, 55.0, 1.3, 1000.0]; mat_type_carray{end+1} = 'OG';
 
 dir_name_carray = dir(runPath);
 dir_name_carray = dir_name_carray([dir_name_carray.isdir]); %remove files
@@ -41,6 +38,7 @@ file_name_carray = fullfile(dir_name_carray,'test_data.mat');
 
 %% Specify Reference (synthetic experimental data)
 specify_ref_test = questdlg('Choose reference data selection method','reference data selection','by exp_params_carry (must be in same structure)','manually', 'by exp results','by exp_params_carry (must be in same structure)');
+
 %% Set controls (overwritings)
 % revaluate objective function (if exists already)
 override_obj_fun_val = questdlg('Override previous objective function evaluations?','Override evaluations','yes','no', 'no');
@@ -50,19 +48,9 @@ if strcmp(override_obj_fun_val,'yes')
 else
     save_obj_fun_val = 'no';
 end
-% save figures
-save_figures = questdlg('Save generated figures?','Save figures','yes','no', 'no');
-if strcmp(save_figures,'yes')
-    fig_save_path = uigetdir(dir_name_carray{1});
-    if fig_save_path==0
-        warndlg('No folder specified. Figures will not be saved');
-        save_figures = 'no';
-    end
-else
-    fig_save_path = [];
-end
+
 %% Run over each folder
-dir_ind = 1;
+
 for dir_ind = 1:numel(dir_name_carray)
     % Update wait bar with each passing folder
     save_obj_fun_val_temp = save_obj_fun_val;
@@ -99,9 +87,7 @@ for dir_ind = 1:numel(dir_name_carray)
     for t=1:nSteps
         timeStep = strcat('t_',num2str(t));  % Define field name
         objectiveValues.Ff.(timeStep)=F;
-        objectiveValues.Fu_x.(timeStep)=F;
-        objectiveValues.Fu_y.(timeStep)=F;
-        objectiveValues.Fu_z.(timeStep)=F;
+        objectiveValues.Fu_r.(timeStep)=F;
     end
 
     % Get Experimental data
@@ -130,29 +116,19 @@ for dir_ind = 1:numel(dir_name_carray)
             selpath = uigetdir(local_runPath);
             selpath = erase(selpath,local_runPath); %folder name
             ref_ind = str2double(selpath(7:end));
-            %temp_ref_test = load(fullfile(ref_path,ref_file));
-            %temp_ref_test_arr = temp_ref_test.test;
-            %if ~(isfield(temp_ref_test_arr,'indenter_RB_out')&&isfield(temp_ref_test_arr,'pos_out'))
-            %  temp_ref_test_arr = loadDataFiles(temp_ref_test_arr);
-            %end
             ref_test = test{ref_ind};
         case 'by exp results'
             fprintf('******************\n Select exp_results file \n******************\n');
             % WRITE CODE THAT MATCHES RESULTS TO SIMULATION DATA
     end
 
-    
-    
     % Select partial data
-    indenter_COM = ref_test.MeshGeometry.Indenter.center_of_mass;
-    indenterRadius = ref_test.MeshGeometry.Indenter.radius;
+    cylLength = ref_test.MeshGeometry.Specimen.cylLength;
+    cylRadius = ref_test.MeshGeometry.Specimen.cylRadius;
     [~,pos_data,~] = getNPosMat(ref_test);
-    n = length(pos_data(:,2));
-    ROI_bounds_normalized = [1.2 5.5]; %boundaries in units of indenterRadius
-    ROI_bounds = ROI_bounds_normalized*indenterRadius; %absolute boundaries
-    rel_pos = [pos_data(:,1)';pos_data(:,2)';pos_data(:,3)']-repmat((indenter_COM'-[0,0,indenterRadius]'),1,n);
-    distances = vecnorm(rel_pos);
-    nodeList = (distances >= ROI_bounds(1)) & (distances <= ROI_bounds(2));
+    ROI_bounds_normalized = 0.8; %boundaries in units of cylLength
+    ROI_bounds = ROI_bounds_normalized*cylLength; %absolute boundaries
+    nodeList = (pos_data(:,1) <= ROI_bounds(1));
     objectiveStruct.nodeList = nodeList;
 
     ref_test.disp_out.ux.data = ref_test.disp_out.ux.data(nodeList,:);
@@ -160,12 +136,9 @@ for dir_ind = 1:numel(dir_name_carray)
     ref_test.disp_out.uz.data = ref_test.disp_out.uz.data(nodeList,:);
 
     % Insert values to objectiveStruct (used for evaluating the objective function).
-    objectiveStruct.force_exp = ref_test.indenter_RB_out.Fz.data;
-    objectiveStruct.indentation_depth_exp = ref_test.indenter_RB_out.z.data;
+    objectiveStruct.force_exp = sum(ref_test.force_out.Rz.data,1);
     objectiveStruct.pos_data = pos_data(:,:,1);
     objectiveStruct.disp_exp = ref_test.disp_out;
-    objectiveStruct.indenterRadius = ref_test.MeshGeometry.Indenter.radius;
-    objectiveStruct.indenter_COM = ref_test.MeshGeometry.Indenter.center_of_mass;
 
     %     % Add synthetic random noise to the synthetic test data measurements
     %     S_pos = rand(size(objectiveStruct.pos_exp));
@@ -183,7 +156,7 @@ for dir_ind = 1:numel(dir_name_carray)
             if strcmp(override_obj_fun_val,'yes') %re-evaluate objFun
                 if test{i}.runFlag==1
                     warning('Evaluating test #%d/%d in %s.',i,numel(test),dir_analysis);
-                    test{i}.obj_fun_val = calcObjFun(test{i},objectiveStruct); %evaluate objFun
+                    test{i}.obj_fun_val = calcObjFun_uniaxial_compr(test{i},objectiveStruct); %evaluate objFun
                 end
             end
         else
@@ -191,14 +164,12 @@ for dir_ind = 1:numel(dir_name_carray)
             if test{i}.runFlag==0 %simulation failed
                 % Construct a missing value for each objective function result
                 test{i}.obj_fun_val.Ff=[0,NaN(1,nSteps)];
-                test{i}.obj_fun_val.Fu_z=[0,NaN(1,nSteps)];
-                test{i}.obj_fun_val.Fu_x=[0,NaN(1,nSteps)];
-                test{i}.obj_fun_val.Fu_y=[0,NaN(1,nSteps)];
+                test{i}.obj_fun_val.Fu_r=[0,NaN(1,nSteps)];
 
             elseif test{i}.runFlag==2 %simulation skipped
                 continue; % Skip calculations on tests that were not simulated
             else %simulation should be evaluated
-                test{i}.obj_fun_val = calcObjFun(test{i},objectiveStruct); %evaluate objFun
+                test{i}.obj_fun_val = calcObjFun_uniaxial_compr(test{i},objectiveStruct); %evaluate objFun
                 save_obj_fun_val_temp = 'yes';
             end
         end
@@ -207,9 +178,7 @@ for dir_ind = 1:numel(dir_name_carray)
         for t=1:nSteps % Loop over the time steps
             timeStep = strcat('t_',num2str(t));  % Define field name
             objectiveValues.Ff.(timeStep)(i) = test{i}.obj_fun_val.Ff(t+1);
-            objectiveValues.Fu_x.(timeStep)(i) = test{i}.obj_fun_val.Fu_x(t+1);
-            objectiveValues.Fu_y.(timeStep)(i) = test{i}.obj_fun_val.Fu_y(t+1);
-            objectiveValues.Fu_z.(timeStep)(i) = test{i}.obj_fun_val.Fu_z(t+1);
+            objectiveValues.Fu_r.(timeStep)(i) = test{i}.obj_fun_val.Fu_r(t+1);
         end
     end
     % Check if there are any NaN values in the data, and if so interpolate
@@ -224,9 +193,7 @@ for dir_ind = 1:numel(dir_name_carray)
             for t=1:nSteps
                 timeStep = strcat('t_',num2str(t));
                 [objectiveValues.Ff.(timeStep),TF_temp] = fillmissing(objectiveValues.Ff.(timeStep),'linear',dim,'EndValues','nearest');
-                objectiveValues.Fu_x.(timeStep) = fillmissing(objectiveValues.Fu_x.(timeStep),'linear',dim,'EndValues','nearest');
-                objectiveValues.Fu_y.(timeStep) = fillmissing(objectiveValues.Fu_y.(timeStep),'linear',dim,'EndValues','nearest');
-                objectiveValues.Fu_z.(timeStep) = fillmissing(objectiveValues.Fu_z.(timeStep),'linear',dim,'EndValues','nearest');
+                objectiveValues.Fu_r.(timeStep) = fillmissing(objectiveValues.Fu_r.(timeStep),'linear',dim,'EndValues','nearest');
                 if first
                     TF=TF_temp; % save the initial map of failed simulations
                     first=false;
@@ -237,9 +204,7 @@ for dir_ind = 1:numel(dir_name_carray)
                     for t=1:nSteps
                         timeStep = strcat('t_',num2str(t));
                         objectiveValues.Ff.(timeStep)(idx(i))=NaN;
-                        objectiveValues.Fu_x.(timeStep)(idx(i))=NaN;
-                        objectiveValues.Fu_y.(timeStep)(idx(i))=NaN;
-                        objectiveValues.Fu_z.(timeStep)(idx(i))=NaN;
+                        objectiveValues.Fu_r.(timeStep)(idx(i))=NaN;
                     end
                 end
             end
@@ -263,60 +228,54 @@ for dir_ind = 1:numel(dir_name_carray)
     if n_accuracy>8; n_accuracy=8; end
 %     n_accuracy = 2; % uncomment this line to override automatic accuracy
 
-    %normalize parameter space
-    num_dim = ndims(X); %the number of dimensions
+    % normalize parameter space
+    num_dim = ndims(X); % the number of dimensions
     % find index of Hessian center point in the parameter space
     S = cell (1,num_dim); % create a cell array to store the output arguments
     [S{:}] = ind2sub(size(X),ref_ind); % convert the linear index of the reference point to subscripts
-    mid_value = X{S{:}}; %get the value of the parameter space
-    mid_value(mid_value==0)=0.1; %replace any zero values with 0.1 to avoid division by zero
-    %create a normalized space
+    mid_value = X{S{:}}; % get the value of the parameter space
+    mid_value(mid_value==0)=0.1; % replace any zero values with 0.1 to avoid division by zero
+    % create a normalized space
     X_norm = cell(size(X));
     for i=1:numel(X)
         X_norm{i} = X{i}./mid_value;
     end
 
     objectiveValues.Ff.sumOfSquares=F*0;
-    objectiveValues.Fu_x.sumOfSquares=F*0;
-    objectiveValues.Fu_y.sumOfSquares=F*0;
-    objectiveValues.Fu_z.sumOfSquares=F*0;
+    objectiveValues.Fu_r.sumOfSquares=F*0;
 
     for t=1:nSteps
         timeStep = strcat('t_',num2str(t));
         objectiveValues.Ff.sumOfSquares = objectiveValues.Ff.sumOfSquares + objectiveValues.Ff.(timeStep);
-        objectiveValues.Fu_x.sumOfSquares = objectiveValues.Fu_x.sumOfSquares + objectiveValues.Fu_x.(timeStep);
-        objectiveValues.Fu_y.sumOfSquares = objectiveValues.Fu_y.sumOfSquares + objectiveValues.Fu_y.(timeStep);
-        objectiveValues.Fu_z.sumOfSquares = objectiveValues.Fu_z.sumOfSquares + objectiveValues.Fu_z.(timeStep);
+        objectiveValues.Fu_r.sumOfSquares = objectiveValues.Fu_r.sumOfSquares + objectiveValues.Fu_r.(timeStep);
     end
 
     % Determine objective function shapes of each test
     Hf = getHessian(X_norm,objectiveValues.Ff.sumOfSquares,n_accuracy);
-    Hx = getHessian(X_norm,objectiveValues.Fu_x.sumOfSquares,n_accuracy);
-    Hy = getHessian(X_norm,objectiveValues.Fu_y.sumOfSquares,n_accuracy);
-    Hz = getHessian(X_norm,objectiveValues.Fu_z.sumOfSquares,n_accuracy);
-    Ef = 0.1; %force measurement error (normalized)
-    E_disp = 0.03; % displacement measurement error (normalized)
-    p=zeros(num_dim,4); %initialize best objective function data matrix
+    Hr = getHessian(X_norm,objectiveValues.Fu_r.sumOfSquares,n_accuracy);
+    Ef = 0.05; %force measurement error (normalized)
+    E_disp = 0.1; % displacement measurement error (normalized)
+    p=zeros(num_dim,length(fieldnames(objectiveValues))); %initialize best objective function data matrix
     err=zeros(num_dim,1);
     std=err;
     clc;
     for i=1:num_dim
         % Define the objective function as a function handle
         s = struct ('type','()','subs',{{i,i}});
-        objfun = @(x) sqrt(x*[Ef E_disp E_disp E_disp].^2')* ...
-            sqrt(2*subsref(inv(x(1)*Hf + x(2)*Hx + x(3)*Hy + x(4)*Hz),s));
+        objfun = @(x) sqrt(x*[Ef E_disp].^2')* ...
+            sqrt(2*subsref(inv(x(1)*Hf + x(2)*Hr),s));
         % Define the constraint function as a function handle
-        constrfun = @(x) deal(-subsref(inv(x(1)*Hf + x(2)*Hx + x(3)*Hy + x(4)*Hz),s), x(1) + x(2) + x(3) + x(4) - 1);
+        constrfun = @(x) deal(-subsref(inv(x(1)*Hf + x(2)*Hr),s), x(1) + x(2) - 1);
         % Define an initial guess for the weights
-        x0 = [0.1 0.4 0.4 0.1];
+        x0 = [0.5 0.5];
         % Define some options for the solver
         options = optimoptions('fmincon','Display','iter');
         % Define the lower and upper bounds for the weights
-        lb = [0 0 0 0];
-        ub = [1 1 1 1];
+        lb = [0 0];
+        ub = [1 1];
         % Call the fmincon function with the bounds
         [p(i,:),fval] = fmincon(objfun,x0,[],[],[],[],lb,ub,constrfun,options);
-        std(i) = sqrt(p(i,:)*[Ef E_disp E_disp E_disp].^2');
+        std(i) = sqrt(p(i,:)*[Ef E_disp].^2');
 %         err(i)=std(i)*sqrt(2*fval);
         err(i)=fval;
     end
@@ -324,14 +283,14 @@ for dir_ind = 1:numel(dir_name_carray)
     disp(mat_type)
     for i=1:num_dim
         % objective function shape to use
-        OF = p(i,1)*objectiveValues.Ff.sumOfSquares+p(i,2)*objectiveValues.Fu_x.sumOfSquares+p(i,3)*objectiveValues.Fu_y.sumOfSquares+p(i,4)*objectiveValues.Fu_z.sumOfSquares;
+        OF = p(i,1)*objectiveValues.Ff.sumOfSquares+p(i,2)*objectiveValues.Fu_r.sumOfSquares;
         H = getHessian(X_norm,OF,n_accuracy);
         [V,K] = eig(H);
         varNames={'Hessian','Eigenvectors','Eigenvalues'};
         timeStep = table(H,V,K,'VariableNames',varNames);
         disp(timeStep)
         fprintf('Error of "%s" is ±%d (±%.2f%%)\n',run_log.metadata.varried_parameters{i},err(i),100*err(i));
-        fprintf('Where the optimal objective function uses %.2f*Ff+%.2f*Fu_x+%.2f*Fu_y+%.2f*Fu_z\nAnd the standard deviation is S=%.2f\n\n',p(i,:),std(i));
+        fprintf('Where the optimal objective function uses %.2f*Ff+%.2f*Fu_r\nAnd the standard deviation is S=%.2f\n\n',p(i,:),std(i));
     end
 
 
@@ -345,10 +304,10 @@ fontSize = 15;
 % Initialize variables and parameters
 close all
 operateOn = [1,2]; % choose the dimensions that the local hessian will operate on!
-idealParam = 2; % choose objective function shape to use
+idealParam = 1; % choose objective function shape to use
 idealP = p(idealParam,:);
-OF = idealP(1)*objectiveValues.Ff.sumOfSquares+idealP(2)*objectiveValues.Fu_x.sumOfSquares+idealP(3)*objectiveValues.Fu_y.sumOfSquares+idealP(4)*objectiveValues.Fu_z.sumOfSquares;
-% OF = 0*objectiveValues.Ff.t_5+0*objectiveValues.Fu_x.t_5+1*objectiveValues.Fu_y.t_5+0*objectiveValues.Fu_z.t_5;
+OF = idealP(1)*objectiveValues.Ff.sumOfSquares+idealP(2)*objectiveValues.Fu_r.sumOfSquares;
+% OF = 0.5*objectiveValues.Ff.sumOfSquares+0.5*objectiveValues.Fu_r.sumOfSquares;
 % get the names of the parameters
 varried_parameters = run_log.metadata.varried_parameters;
 fields = run_log.metadata.fields;
@@ -406,6 +365,7 @@ figure() % create another figure
 % Define countour lines
 flatFlag = 0;
 stdDeviation = std(idealParam)^2;
+% stdDeviation = 0.033^2;
 numCurves = 10;
 [Fx,Fy] = gradient(local_Z);
 grad_temp = sqrt(Fx.^2+Fy.^2);
@@ -444,11 +404,6 @@ func = @(x,y) dot((theta_fun(x,y)'*Hessian_temp)',theta_fun(x,y));
 fcontour(func,'--w', 'LevelList', std(idealParam)^2, 'Visible', 'on','tag','Contours');
 
 hold off 
-
-% Open location of saved plots
-if strcmp(save_figures, 'yes')
-    winopen(fig_save_path)
-end
 
 %% Optimal Objective Function
 

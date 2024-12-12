@@ -4,11 +4,11 @@ clear; close all; clc;
 %% USER-DEFINED SETTINGS
 % Material Parameters
 mat_type = 'trans iso Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material'
-matParameters.c1 = linspace(1.5,12,9); % Range of first material parameter (scalar/vector)
-matParameters.c2 = linspace(-1,4,9); % Range of second material parameter (scalar/vector)
+matParameters.c1 = linspace(9.4211*0.5,9.4211*1.5,9); % Range of first material parameter (scalar/vector)
+matParameters.c2 = linspace(-2,200,9); % Range of second material parameter (scalar/vector)
 matParameters.c3 = linspace(0,0,1); % Range of third material parameter (scalar/vector)
 matParameters.c4 = linspace(0,0,1); % Range of fourth material parameter (scalar/vector)
-matParameters.c5 = linspace(12,32,9); % Range of fifth material parameter (scalar/vector)
+matParameters.c5 = linspace(321/10,321*2,9); % Range of fifth material parameter (scalar/vector)
 % matParameters.P6 = linspace(1,1.1,1);
 matParameters.lam_max = 1;
 matParameters.k = 1e3; % Range of bulk material parameter multiplier (scalar/vector)
@@ -27,8 +27,7 @@ H_bias = 0.5; % bias factor in axial direction (H_bias=(beta_r-1) from paper)
 elementType = 'hex8'; % 'hex8','hex20'
 benchmark_flag = 0; % 0 - axisymmetric model, 1 - full 3D model.
 ignore_formula = 1; % 0 - special formula for element size bias, 1 - same as in paper
-% Indenter Parameters
-R_ind = 15; % indenter radius (mm)
+
 %% Control Parameters
 runMode = 'external'; % FEBio run mode - 'external', 'internal'
 % select analysis type (currently only indentation is implemented)
@@ -220,17 +219,6 @@ end
 waitbar(1,waitbar_sim,'Compiling data...');
 
 %% Update and save run_log structure
-run_log.metadata.mat_type = mat_type;
-run_log.metadata.paramValuesForAnalyses = paramValuesForAnalyses;
-run_log.metadata.mesh_refinement_factor = mesh_refinement_factor;
-run_log.metadata.runPath = runPath;
-run_log.metadata.timeMust = timeMust';
-run_log.metadata.end_time_raw = now;
-run_log.metadata.end_time = datestr(datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss Z'));
-run_log.metadata.run_time = sprintf('%d hours, %d minutes and %f seconds',floor(toc(full_time)/3600), rem(floor(toc(full_time)/60),60), rem(toc(full_time),60));
-run_log.metadata.fields = fields;
-run_log.metadata.varried_parameters = fields(multi_value_param);
-
 % find and report failed jobs
 bad_ind = [];
 for i=1:numel(run_log.test)
@@ -238,9 +226,20 @@ for i=1:numel(run_log.test)
         bad_ind(end+1) = i;
     end
 end
+
+run_log.metadata.mat_type = mat_type;
+run_log.metadata.paramValuesForAnalyses = paramValuesForAnalyses;
+% run_log.metadata.mesh_refinement_factor = mesh_refinement_factor;
+run_log.metadata.runPath = runPath;
+run_log.metadata.timeMust = timeMust';
+run_log.metadata.end_time_raw = now;
+run_log.metadata.end_time = datestr(datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss Z'));
+run_log.metadata.run_time = sprintf('%d hours, %d minutes and %f seconds',floor(toc(full_time)/3600), rem(floor(toc(full_time)/60),60), rem(toc(full_time),60));
+run_log.metadata.fields = fields;
+run_log.metadata.varried_parameters = fields(multi_value_param);
 run_log.metadata.failed_runs = bad_ind;
 
-yaml.WriteYaml(fullfile(runPath,'run_log.txt'),rmfield(run_log,'test'));
+yaml.WriteYaml(fullfile(runPath,'run_log.txt'),run_log.metadata);
 
 run_log.metadata.X = X; %add multidimensional array after .yaml
 waitbar(1,waitbar_sim,'Saving data...');

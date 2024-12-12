@@ -24,7 +24,7 @@ mat_type_carray = {}; % mat_type_carray{k} - name of material model used in the 
 % dir_name_carray{end+1} = 'D:\axysimmetric_objFun\NeoHookeanYoung\attempt2'; exp_params_carray{end+1} = [59e-3,0.3650]; mat_type_carray{end+1} = 'NH';
 %%%%%% Ogden 1st order
 % dir_name_carray{end+1} = 'D:\axysimmetric_objFun\OgdenFirstOrder\coarse_sweep\attempt6'; exp_params_carray{end+1}=[26e-3,19,26]; mat_type_carray{end+1} = 'OG';
-dir_name_carray{end+1} = 'C:\Users\user\Documents\GitHub\trial1'; exp_params_carray{end+1}=[26e-3,19,26]; mat_type_carray{end+1} = 'OG';
+dir_name_carray{end+1} = 'C:\Users\user\Documents\GitHub\Tests\Zohar'; exp_params_carray{end+1}=[26e-3,19,26]; mat_type_carray{end+1} = 'OG';
 %%%%%% 
 file_name_carray = fullfile(dir_name_carray,'test.mat');
 % % % % % % % % % % %% % % % % % % % % % % % % % % % % % % <<<<< User-specified (END)

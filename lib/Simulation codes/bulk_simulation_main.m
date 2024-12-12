@@ -1,39 +1,40 @@
-% Axisymmetric Indentation main script
+% Bulk simulation main script
 clear; close all; clc;
 
 %% USER-DEFINED SETTINGS
+
 % Material Parameters
-mat_type = 'trans iso Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material'
-matParameters.c1 = linspace(8.3*0.5,8.3*1.5,9); % Range of first material parameter (scalar/vector)
+mat_type = 'trans iso Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material', 'neo-Hookean fiber reinforced'
+leftSide = linspace(1, 4.6, 8 + 1); rightSide = linspace(4.6, 14, 8 + 1);
+matParameters.c1 = [leftSide(1:end-1), rightSide]; % Range of first material parameter (scalar/vector)
 matParameters.c2 = linspace(0,0,1); % Range of second material parameter (scalar/vector)
 matParameters.c3 = linspace(0,0,1); % Range of third material parameter (scalar/vector)
 matParameters.c4 = linspace(0,0,1); % Range of fourth material parameter (scalar/vector)
-matParameters.c5 = linspace(2/10,2*19/10,9); % Range of fifth material parameter (scalar/vector)
+matParameters.c5 = linspace(323.7*0.3,323.7*1.7,17); % Range of fifth material parameter (scalar/vector)
 % matParameters.P6 = linspace(1,1.1,1);
 matParameters.lam_max = 1;
 matParameters.k = 1e3; % Range of bulk material parameter multiplier (scalar/vector)
 
-%Sphere parameters
+% Specimen geometry
+mesh_path = 'C:\Users\user\OneDrive - Technion\Amit-Dana shared folder\Research\Parameter Identification\Mesh Anlysis\100x100x60 cube\mesh_2.mat';
+%Indenter parameters (ignore if doing tension/compression)
 numRefineStepsSphere=2;
 sphereRadius=9.53/2;
-sphereDisplacement=14; 
+sphereDisplacement=14;
 
-% Specimen parameters
-W_sp = 60; % specimen length (mm)
-H_sp = 60; % specimen height (mm)
-mesh_refinement_factor = 2; % Mesh refinement factor, N (scalar/vector)
-R_bias = 0.5; % bias factor in radial direction (R_bias=(beta_r-1) from paper)
-H_bias = 0.5; % bias factor in axial direction (H_bias=(beta_r-1) from paper)
+% Specimen parameters (ignore if doing indentation)
+cylLength = 20; % specimen length (mm)
+cylRadius = 13; % specimen radius (mm)
+mesh_refinement_factor = 1.5; % Mesh refinement factor, N (scalar/vector)
+appliedStretch = 8; % (mm)
+
 elementType = 'hex8'; % 'hex8','hex20'
-benchmark_flag = 0; % 0 - axisymmetric model, 1 - full 3D model.
-ignore_formula = 1; % 0 - special formula for element size bias, 1 - same as in paper
-% Indenter Parameters
-R_ind = 15; % indenter radius (mm)
+
 %% Control Parameters
 runMode = 'external'; % FEBio run mode - 'external', 'internal'
 % select analysis type (currently only indentation is implemented)
-analysis_type = questdlg('Analysis type','Analysis type','Indentation','Tension', 'Compression', 'Tension');
-if isempty(analysis_type)
+testType = questdlg('Analysis type','Analysis type','Indentation','Tension', 'Compression', 'Tension');
+if isempty(testType)
     error('analysis_type was left unassigned')
 end
 % decide if to run all simulations in space or just those needed to
@@ -61,52 +62,63 @@ maxaug=10;
 timeMust = [0 0.2 0.4 0.6 0.8 1]'; %List of time points in which a simulation result will be available.
 
 %% Creating model geometry and mesh
+switch testType
+    case 'Indentation'
+        load(mesh_path)
+        % Offset Box
+        V(:,3)=V(:,3)-max(V(:,3)); %Box Z location 
+        
+        %Convert elements to faces
+        [F,~]=element2patch(E,[],'hex8');
+        
+        %Find boundary faces
+        [indFree]=freeBoundaryPatch(F);
+        Fb=F(indFree,:);
+        
+        %Create faceBoundaryMarkers based on normals
+        [N]=patchNormal(Fb,V); %N.B. Change of convention changes meaning of front, top etc.
+        
+        faceBoundaryMarker=zeros(size(Fb,1),1);
+        
+        faceBoundaryMarker(N(:,1)<-0.5)=1; %Left
+        faceBoundaryMarker(N(:,1)>0.5)=2; %Right
+        faceBoundaryMarker(N(:,2)<-0.5)=3; %Front
+        faceBoundaryMarker(N(:,2)>0.5)=4; %Back
+        faceBoundaryMarker(N(:,3)<-0.5)=5; %Bottom
+        faceBoundaryMarker(N(:,3)>0.5)=6; %Top
 
-load("indentify\lib\Axisymmetric Indentation\coarse3_trueSize.mat")
-% Offset Box
-V(:,3)=V(:,3)-max(V(:,3)); %Box Z location 
+        meshStruct.nodes=V;
+        meshStruct.facesBoundary=Fb;
+        meshStruct.boundaryMarker=faceBoundaryMarker;
+        meshStruct.faces=F;
+        meshStruct.elements=E;
+        meshStruct.elementMaterialID=ones(size(E,1),1);
+        meshStruct.faceMaterialID=ones(size(meshStruct.faces,1),1);
+        sampleHeight=max(V(:,3))-min(V(:,3));
+        MeshGeometry.Specimen = meshStruct;
 
-%Convert elements to faces
-[F,~]=element2patch(E,[],'hex8');
+        % Creating triangulated sphere surface model
+        [E2,V2,~]=geoSphere(numRefineStepsSphere,sphereRadius);
+        %Offset indentor
+        minZ=min(V2(:,3));
+        V2(:,3)=V2(:,3)-minZ+max(V(:,3))+contactInitialOffset; %Sphere Z location
+        center_of_mass=mean(V2,1);
+        MeshGeometry.Indenter.elements = E2;
+        MeshGeometry.Indenter.nodes = V2;
+        MeshGeometry.Indenter.center_of_mass=mean(V2,1);
+        MeshGeometry.Indenter.radius = sphereRadius;
 
-%Find boundary faces
-[indFree]=freeBoundaryPatch(F);
-Fb=F(indFree,:);
+    otherwise
+        pointSpacing=4/mesh_refinement_factor*ones(1,2); %Desired point spacing between nodes
+        [meshStruct] = hexMeshCylinder(cylRadius,cylLength,pointSpacing);
+        V = meshStruct.nodes;
+        V(:,3) = V(:,3)-min(V(:,3)); % Move center to 0 
+        meshStruct.nodes = V;
 
-%Create faceBoundaryMarkers based on normals
-[N]=patchNormal(Fb,V); %N.B. Change of convention changes meaning of front, top etc.
+        MeshGeometry.Specimen = meshStruct;
+end
 
-faceBoundaryMarker=zeros(size(Fb,1),1);
 
-faceBoundaryMarker(N(:,1)<-0.5)=1; %Left
-faceBoundaryMarker(N(:,1)>0.5)=2; %Right
-faceBoundaryMarker(N(:,2)<-0.5)=3; %Front
-faceBoundaryMarker(N(:,2)>0.5)=4; %Back
-faceBoundaryMarker(N(:,3)<-0.5)=5; %Bottom
-faceBoundaryMarker(N(:,3)>0.5)=6; %Top
-
-meshStruct.nodes=V;
-meshStruct.facesBoundary=Fb;
-meshStruct.boundaryMarker=faceBoundaryMarker;
-meshStruct.faces=F;
-meshStruct.elements=E;
-meshStruct.elementMaterialID=ones(size(E,1),1);
-meshStruct.faceMaterialID=ones(size(meshStruct.faces,1),1);
-sampleHeight=max(V(:,3))-min(V(:,3));
-
-MeshGeometry.Specimen = meshStruct;
-
-%% Creating triangulated sphere surface model
-
-[E2,V2,~]=geoSphere(numRefineStepsSphere,sphereRadius);
-%Offset indentor
-minZ=min(V2(:,3));
-V2(:,3)=V2(:,3)-minZ+max(V(:,3))+contactInitialOffset; %Sphere Z location
-center_of_mass=mean(V2,1);
-MeshGeometry.Indenter.elements = E2;
-MeshGeometry.Indenter.nodes = V2;
-MeshGeometry.Indenter.center_of_mass=mean(V2,1);
-MeshGeometry.Indenter.radius = sphereRadius;
 
 %% Simulation setup and execution
 run_log.metadata.start_time_raw = now;
@@ -163,6 +175,7 @@ for i_test = 1:nAnalyses
     test.runMode = runMode;
     test.timeMust = timeMust;
     test.sphereDisplacement = sphereDisplacement;
+    test.appliedStretch = appliedStretch;
     %Check if simulation will be used in Hessian calculation for material
     %properties at excat center of parameter space
     mid = paramValuesForAnalyses(ceil(nAnalyses/2),:);
@@ -172,9 +185,33 @@ for i_test = 1:nAnalyses
     tic
     % Send (my_param,modelName,savePath) to appropriate
     % GIBBON constructor and execution function
-    switch analysis_type
+    switch testType
         case 'Tension'
+            test.loadingOption='tension';
+            if use_simulation
+                [febio_spec,febioAnalysis,runFlag] = runUniaxial(test,1);
+            else
+                test.runFlag = 2;
+                run_log.test{i_test} = test;
+            continue;
+            end
+            test.MeshGeometry = rmfield(test.MeshGeometry,'Specimen');
+            test.MeshGeometry.Specimen.cylRadius = cylRadius;
+            test.MeshGeometry.Specimen.cylLength = cylLength;
+            test.MeshGeometry.Specimen.meshf = mesh_refinement_factor;
         case 'Compression'
+            test.loadingOption='compression';
+            if use_simulation
+                [febio_spec,febioAnalysis,runFlag] = runUniaxial(test,1);
+            else
+                test.runFlag = 2;
+                run_log.test{i_test} = test;
+            continue;
+            end
+            test.MeshGeometry = rmfield(test.MeshGeometry,'Specimen');
+            test.MeshGeometry.Specimen.cylRadius = cylRadius;
+            test.MeshGeometry.Specimen.cylLength = cylLength;
+            test.MeshGeometry.Specimen.meshf = mesh_refinement_factor;
         case 'Indentation'
             if use_simulation
                 [febio_spec,febioAnalysis,runFlag] = runAnisotropicIndentation(test,1);
@@ -183,7 +220,10 @@ for i_test = 1:nAnalyses
                 run_log.test{i_test} = test;
             continue;
             end
+            test.MeshGeometry.Indenter = rmfield(test.MeshGeometry.Indenter,{'nodes';'elements'});
+            test.MeshGeometry = rmfield(test.MeshGeometry,'Specimen');
     end
+
     [~,test.model_name,~] = fileparts(febioAnalysis.run_logname);
     test.node_data_files = {};
     test.element_data_files = {};
@@ -197,8 +237,6 @@ for i_test = 1:nAnalyses
     if ~runFlag %i.e. an unsuccesful run
         warning(['Error termination (test ID=', num2str(i_test), 'model name =',modelName]);
     end
-    test.MeshGeometry.Indenter = rmfield(test.MeshGeometry.Indenter,{'nodes';'elements'});
-    test.MeshGeometry = rmfield(test.MeshGeometry,'Specimen');
     run_log.test{i_test} = test;
     % write to text (use copy withouth MeshGeometry field to
     % avoid clutter)
