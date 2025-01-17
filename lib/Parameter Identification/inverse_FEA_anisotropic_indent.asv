@@ -12,7 +12,7 @@ edgeWidth=1.5;
 markerSize=25;
 markerSize2=50;
 lineWidth=5;
-lineWidth2=2;
+lineWidth2=3;
 cMap=viridis(20);
 
 % Change default axes fonts.
@@ -21,7 +21,7 @@ set(0,'DefaultAxesFontSize',fontSize)
 set(0,'defaulttextinterpreter','latex');
 
 % Define analysis settings
-objectiveWeights = [0.45 0.35 0.2 0.0];
+objectiveWeights = [0.5 0.5 0.0 0.0];
 
 mesh_path = 'C:\Users\user\OneDrive - Technion\Amit-Dana shared folder\Research\Parameter Identification\Mesh Anlysis\100x100x60 cube\mesh_2.mat';
 % mesh_path = 'C:\Users\user\OneDrive - Technion\Amit-Dana shared folder\Research\Parameter Identification\Mesh Anlysis\70x70x70 cube\coarse3_trueSize.mat';
@@ -83,7 +83,7 @@ toleranceObjectiveValue = 3*1e-2;
 % Material Parameters
 mat_type = 'trans iso Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material', 'neo-Hookean fiber reinforced'
 %Initial material parameter set
-matParameters.c1 = 6;
+matParameters.c1 = 7.5;
 matParameters.c2 = 0;
 matParameters.c3 = 0;
 matParameters.c4 = 0;
@@ -98,7 +98,7 @@ parNamesToVary = {'c1','c5'};
 %Sphere parameters
 numRefineStepsSphere=2;
 sphereRadius=9.54/2;
-% sphereRadius=8;
+sphereRadius=8;
 
 %% Control Parameters
 runMode = 'external'; % FEBio run mode - 'external', 'internal'
@@ -222,29 +222,26 @@ if analysis.runFlag == 1
     force_sim = analysis.indenter_RB_out.Fz.data;
     
     hf = cFigure; %Open figure  
-    set(hf,'Units', 'centimeters', 'Position', [0, 0, 40, 25])
 %     title('Indenter Force curves optimisation','FontSize',fontSize);
     % Visualize force-depth curve
     subplot(2,2,[1 3]); hold on;
     title('Indenter Force curves optimisation','FontSize',fontSize);
-    xlabel('Indenter Depth [\%]','FontSize',fontSize); ylabel('Force [N]','FontSize',fontSize, Interpreter='latex'); hold on;
-    Hf(1)=plot(100*timeMust,abs(force_exp)/1000,'o','lineWidth',lineWidth, 'color', [246, 59, 1]/255, 'MarkerFaceColor', [246, 59, 1]/255);
+    xlabel('Indenter Depth [\%]','FontSize',fontSize); ylabel('Measured Force [N]','FontSize',fontSize, Interpreter='latex'); hold on;
+    Hf(1)=plot(100*timeMust,abs(force_exp)/1000,'ko','lineWidth',lineWidth);
     view(2); axis tight;  grid on; axis square; axis manual;
-    Hf(2)=plot(100*timeMust,abs(force_sim)/1000,'o-','lineWidth',lineWidth2,'markerSize',10, 'color', [50, 50, 100]/255);
-    legend(Hf,{'Composite simulation','Homogeneous simulation'},'Location','northwest');
+    Hf(2)=plot(100*timeMust,abs(force_sim)/1000,'r.-','lineWidth',lineWidth2,'markerSize',markerSize2);
+    legend(Hf,{'Experiment','Simulation'},'Location','northwest');
     set(gca,'FontSize',fontSize);
 
     subplot(2,2,2); hold on; 
     % Visualize deformed surface
     title('Specimen surface curves optimisation','FontSize',fontSize);
     xlabel('Y [mm]','FontSize',fontSize); ylabel('Z [mm]','FontSize',fontSize); hold on;
-    Hd(1)=plot(exp_def_curve_y,exp_def_curve_z,'.','lineWidth',lineWidth,'markerSize',markerSize2, 'color', [246, 59, 1]/255);
+    Hd(1)=plot(exp_def_curve_y,exp_def_curve_z,'k.','lineWidth',lineWidth,'markerSize',markerSize2);
     view(2); axis tight;  grid on; axis equal;
-    Hd(2)=plot(sim_def_curve_y,sim_def_curve_z,'.','lineWidth',lineWidth2,'markerSize',markerSize, 'color', [50, 50, 100]/255);
-    legend(Hd,{'Composite simulation','Homogeneous simulation'},'Location','southeast');
+    Hd(2)=plot(sim_def_curve_y,sim_def_curve_z,'r.','lineWidth',lineWidth2,'markerSize',markerSize);
+    legend(Hd,{'Experiment','Simulation'},'Location','southeast');
     set(gca,'FontSize',fontSize);
-    ylim([-15,0])
-    xlim([0,50])
     
     if length(parNamesToVary) == 2
         subplot(2,2,4); hold on; 
@@ -272,7 +269,6 @@ mat_struct.par_values=parValuesIni; %Parameter values
 mat_struct.par_vary_idx = parIndicesToVary; %Parameter indices
 
 %What should be known to the objective function:
-objectiveStruct.hf = hf; %Plot
 objectiveStruct.Hf=Hf(2); %Force plot
 objectiveStruct.Hd=Hd(2); %Deformation plot
 objectiveStruct.Hc=Hc; %Convergence plot
@@ -423,7 +419,7 @@ if runFlag==1
         drawnow;
     end
 
-    exportgraphics(objectiveStruct.hf,"C:\Users\user\Downloads\SamplePlot.gif","Append",true)
+    exportgraphics(gca,"C:\Users\user\Downloads\SamplePlot.gif","Append",true)
 
 
     switch objectiveStruct.method

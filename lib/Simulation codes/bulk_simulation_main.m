@@ -4,15 +4,15 @@ clear; close all; clc;
 %% USER-DEFINED SETTINGS
 
 % Material Parameters
-mat_type = 'trans iso Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material', 'neo-Hookean fiber reinforced'
-leftSide = linspace(1, 4.6, 8 + 1); rightSide = linspace(4.6, 14, 8 + 1);
+mat_type = 'Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material', 'neo-Hookean fiber reinforced'
+leftSide = linspace(1, 6.535, 15 + 1); rightSide = linspace(6.535, 21, 15 + 1);
 matParameters.c1 = [leftSide(1:end-1), rightSide]; % Range of first material parameter (scalar/vector)
 matParameters.c2 = linspace(0,0,1); % Range of second material parameter (scalar/vector)
-matParameters.c3 = linspace(0,0,1); % Range of third material parameter (scalar/vector)
-matParameters.c4 = linspace(0,0,1); % Range of fourth material parameter (scalar/vector)
-matParameters.c5 = linspace(323.7*0.3,323.7*1.7,17); % Range of fifth material parameter (scalar/vector)
+% matParameters.c3 = linspace(0,0,1); % Range of third material parameter (scalar/vector)
+% matParameters.c4 = linspace(0,0,1); % Range of fourth material parameter (scalar/vector)
+% matParameters.c5 = linspace(330.26*0.25,330.26*1.75,25); % Range of fifth material parameter (scalar/vector)
 % matParameters.P6 = linspace(1,1.1,1);
-matParameters.lam_max = 1;
+% matParameters.lam_max = 1;
 matParameters.k = 1e3; % Range of bulk material parameter multiplier (scalar/vector)
 
 % Specimen geometry
@@ -135,6 +135,7 @@ for i_parameter = 1:nParameters
     nAnalyses = nAnalyses*numel(paramValuesForAnalyses{i_parameter});
     paramCount(i_parameter) = numel(paramValuesForAnalyses{i_parameter});
 end
+
 % Compute parameter values for each analyses
 [paramValuesForAnalyses{:}] = ndgrid(paramValuesForAnalyses{:});
 n = nParameters;
@@ -144,6 +145,9 @@ analyses = cell(nAnalyses, 1); % output structure
 multi_value_param=paramCount-1;
 multi_value_param=find(multi_value_param);
 paramCount(paramCount==1)=[];
+if length(paramCount) == 1 % fix numbering in case of edge case 
+    paramCount = [paramCount, 1];
+end
 X = cell(paramCount);
 
 %Determine which simulations will be run or not

@@ -156,7 +156,7 @@ for dir_ind = 1:numel(dir_name_carray)
             if strcmp(override_obj_fun_val,'yes') %re-evaluate objFun
                 if test{i}.runFlag==1
                     warning('Evaluating test #%d/%d in %s.',i,numel(test),dir_analysis);
-                    test{i}.obj_fun_val = calcObjFun_uniaxial_compr(test{i},objectiveStruct); %evaluate objFun
+                    test{i}.obj_fun_val = calcObjFun_uniaxial_compr(test{i},objectiveStruct,0); %evaluate objFun
                 end
             end
         else
@@ -169,7 +169,7 @@ for dir_ind = 1:numel(dir_name_carray)
             elseif test{i}.runFlag==2 %simulation skipped
                 continue; % Skip calculations on tests that were not simulated
             else %simulation should be evaluated
-                test{i}.obj_fun_val = calcObjFun_uniaxial_compr(test{i},objectiveStruct); %evaluate objFun
+                test{i}.obj_fun_val = calcObjFun_uniaxial_compr(test{i},objectiveStruct,0); %evaluate objFun
                 save_obj_fun_val_temp = 'yes';
             end
         end
@@ -223,13 +223,14 @@ for dir_ind = 1:numel(dir_name_carray)
     % Create finalized identifiability results
 
     % Determine best accuracey for Hessian calculations
-    n_accuracy = min(size(X))-1;
+    sizeX = size(X);
+    n_accuracy = min(sizeX(sizeX>1))-1;
     if mod(n_accuracy,2); n_accuracy=n_accuracy-1; end %if n is odd, take the next smallest even number
     if n_accuracy>8; n_accuracy=8; end
 %     n_accuracy = 2; % uncomment this line to override automatic accuracy
 
     % normalize parameter space
-    num_dim = ndims(X); % the number of dimensions
+    num_dim = length(sizeX(sizeX>1)); % the number of dimensions
     % find index of Hessian center point in the parameter space
     S = cell (1,num_dim); % create a cell array to store the output arguments
     [S{:}] = ind2sub(size(X),ref_ind); % convert the linear index of the reference point to subscripts
@@ -254,7 +255,7 @@ for dir_ind = 1:numel(dir_name_carray)
     Hf = getHessian(X_norm,objectiveValues.Ff.sumOfSquares,n_accuracy);
     Hr = getHessian(X_norm,objectiveValues.Fu_r.sumOfSquares,n_accuracy);
     Ef = 0.05; %force measurement error (normalized)
-    E_disp = 0.1; % displacement measurement error (normalized)
+    E_disp = 0.05; % displacement measurement error (normalized)
     p=zeros(num_dim,length(fieldnames(objectiveValues))); %initialize best objective function data matrix
     err=zeros(num_dim,1);
     std=err;
@@ -262,7 +263,7 @@ for dir_ind = 1:numel(dir_name_carray)
     for i=1:num_dim
         % Define the objective function as a function handle
         s = struct ('type','()','subs',{{i,i}});
-        objfun = @(x) sqrt(x*[Ef E_disp].^2')* ...
+        objfun = @(x) sqrt(x*([Ef E_disp].^2'))* ...
             sqrt(2*subsref(inv(x(1)*Hf + x(2)*Hr),s));
         % Define the constraint function as a function handle
         constrfun = @(x) deal(-subsref(inv(x(1)*Hf + x(2)*Hr),s), x(1) + x(2) - 1);

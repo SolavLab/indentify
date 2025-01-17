@@ -88,7 +88,9 @@ for dir_ind = 1:numel(dir_name_carray)
     for t=1:nSteps
         timeStep = strcat('t_',num2str(t));  % Define field name
         objectiveValues.Ff.(timeStep)=F;
-        objectiveValues.Fu_r.(timeStep)=F;
+        objectiveValues.Fu_x.(timeStep)=F;
+        objectiveValues.Fu_y.(timeStep)=F;
+        objectiveValues.Fu_z.(timeStep)=F;
     end
 
     % Get Experimental data
@@ -117,6 +119,11 @@ for dir_ind = 1:numel(dir_name_carray)
             selpath = uigetdir(local_runPath);
             selpath = erase(selpath,local_runPath); %folder name
             ref_ind = str2double(selpath(7:end));
+            %temp_ref_test = load(fullfile(ref_path,ref_file));
+            %temp_ref_test_arr = temp_ref_test.test;
+            %if ~(isfield(temp_ref_test_arr,'indenter_RB_out')&&isfield(temp_ref_test_arr,'pos_out'))
+            %  temp_ref_test_arr = loadDataFiles(temp_ref_test_arr);
+            %end
             ref_test = test{ref_ind};
         case 'by exp results'
             fprintf('******************\n Select exp_results file \n******************\n');
@@ -126,13 +133,12 @@ for dir_ind = 1:numel(dir_name_carray)
     
     
     % Select partial data
-    cylLength = ref_test.MeshGeometry.Specimen.cylLength;
-    cylLength = ref_test.MeshGeometry.Specimen.cylRadius;
+    indenter_COM = ref_test.MeshGeometry.Indenter.center_of_mass;
     indenterRadius = ref_test.MeshGeometry.Indenter.radius;
     [~,pos_data,~] = getNPosMat(ref_test);
     n = length(pos_data(:,2));
     ROI_bounds_normalized = [1.2 5.5]; %boundaries in units of indenterRadius
-    ROI_bounds = ROI_bounds_normalized*ref_test.MeshGeometry; %absolute boundaries
+    ROI_bounds = ROI_bounds_normalized*indenterRadius; %absolute boundaries
     rel_pos = [pos_data(:,1)';pos_data(:,2)';pos_data(:,3)']-repmat((indenter_COM'-[0,0,indenterRadius]'),1,n);
     distances = vecnorm(rel_pos);
     nodeList = (distances >= ROI_bounds(1)) & (distances <= ROI_bounds(2));
@@ -277,9 +283,9 @@ for dir_ind = 1:numel(dir_name_carray)
     Hx = getHessian(X_norm,objectiveValues.Fu_x.sumOfSquares,n_accuracy);
     Hy = getHessian(X_norm,objectiveValues.Fu_y.sumOfSquares,n_accuracy);
     Hz = getHessian(X_norm,objectiveValues.Fu_z.sumOfSquares,n_accuracy);
-    Ef = 0.05; %force measurement error (normalized)
-    E_disp = 0.1; % displacement measurement error (normalized)
-    p=zeros(num_dim,4); %initialize best objective function data matrix
+    Ef = 0.07; %force measurement error (normalized)
+    E_disp = 0.07; % displacement measurement error (normalized)
+    p=zeros(num_dim,length(fieldnames(objectiveValues))); %initialize best objective function data matrix
     err=zeros(num_dim,1);
     std=err;
     clc;
@@ -324,14 +330,17 @@ end
 % This code plots a 2D slice of the objective function space as a 3D
 % surface and a 2D contour. The contour levels are chose to highlight the
 % the confidence interval.
-fontSize = 15;
+fontSize = 12;
 % Initialize variables and parameters
 close all
 operateOn = [1,2]; % choose the dimensions that the local hessian will operate on!
-idealParam = 2; % choose objective function shape to use
+idealParam = 1; % choose objective function shape to use
 idealP = p(idealParam,:);
 OF = idealP(1)*objectiveValues.Ff.sumOfSquares+idealP(2)*objectiveValues.Fu_x.sumOfSquares+idealP(3)*objectiveValues.Fu_y.sumOfSquares+idealP(4)*objectiveValues.Fu_z.sumOfSquares;
-% OF = 0.5*objectiveValues.Ff.sumOfSquares+0.25*objectiveValues.Fu_x.sumOfSquares+0.25*objectiveValues.Fu_y.sumOfSquares+0.25*objectiveValues.Fu_z.sumOfSquares;
+OF = 0.55*objectiveValues.Ff.sumOfSquares+0.2*objectiveValues.Fu_x.sumOfSquares+0.15*objectiveValues.Fu_y.sumOfSquares+0.05*objectiveValues.Fu_z.sumOfSquares;
+% OF = 0*objectiveValues.Ff.sumOfSquares+0.33*objectiveValues.Fu_x.sumOfSquares+0.33*objectiveValues.Fu_y.sumOfSquares+0.34*objectiveValues.Fu_z.sumOfSquares;
+% OF = objectiveValues.Ff.sumOfSquares;
+
 % OF = 0*objectiveValues.Ff.t_5+0*objectiveValues.Fu_x.t_5+1*objectiveValues.Fu_y.t_5+0*objectiveValues.Fu_z.t_5;
 % get the names of the parameters
 varried_parameters = run_log.metadata.varried_parameters;
@@ -383,44 +392,54 @@ end
 figure() % create a new figure
 surf(xData,yData,local_Z) %draw 3d surface
 shading interp % use interpolated shading
-xlabel(varried_parameters{operateOn(1)}) % label the x-axis with the name of the varried parameter
-ylabel(varried_parameters{operateOn(2)}) % label the y-axis with the name of the varried parameter
-figure() % create another figure
+xlabel(varried_parameters{operateOn(1)}, 'FontSize', fontSize) % label the x-axis with the name of the varried parameter
+ylabel(varried_parameters{operateOn(2)}, 'FontSize', fontSize) % label the y-axis with the name of the varried parameter
 
+h = figure('Units', 'centimeters', 'Position', [0, 0, 9, 8]); % create another figure
 % Define countour lines
 flatFlag = 0;
 stdDeviation = std(idealParam)^2;
 % stdDeviation = 0.033^2;
-numCurves = 10;
+numCurves = 6;
 [Fx,Fy] = gradient(local_Z);
 grad_temp = sqrt(Fx.^2+Fy.^2);
 
-min_grad = min(abs(grad_temp),[],'all');
-contour_lines = linspace(min(local_Z,[],'all'), max(local_Z,[],'all'), numCurves);
+min_grad = min(abs(grad_temp), [], 'all');
+max_Z = max(local_Z, [], 'all');
+min_Z = min(local_Z, [], 'all');
+
+contour_lines = linspace(min_Z, max_Z, numCurves);
 [~, std_idx] = min(abs(contour_lines - stdDeviation)); % Find the index of the value closest to S
 [~, cont_idx] = min(abs(local_Z - 2*stdDeviation),[],'all'); % Find the index of the point closest to S
 contour_lines(std_idx) = stdDeviation;
 contour_lines(std_idx:end) = stdDeviation:(2*abs(grad_temp(cont_idx))):(stdDeviation+(numCurves-std_idx)*2*abs(grad_temp(cont_idx)));
-contour_lines(1:std_idx-1) = linspace(min(local_Z,[],'all'),stdDeviation,std_idx-1);
+contour_lines(1:std_idx-1) = linspace(min_Z,stdDeviation,std_idx-1);
 if std_idx==1 contour_lines=[0,contour_lines]; std_idx=2; numCurves=numCurves+1; end
+contour_lines = [contour_lines, logspace(log10(contour_lines(end)),log10(max_Z),10)];
 contourf(xData,yData,local_Z,contour_lines) %draw 2d contours with data points
 %Have all figures with the same colorbar:
 % global_max = max([objectiveValues.Ff.t_5,objectiveValues.Fu_x.t_5,objectiveValues.Fu_y.t_5,objectiveValues.Fu_z.t_5],[],'all');
 % clim([0, 0.5*global_max]) % uncomment this line to set the color limits
 %Optimize colorbar:
 clim([0, (stdDeviation+(numCurves-std_idx)*2*abs(grad_temp(cont_idx)))])
-colorbar % add a colorbar
+
 
 hold on 
 axis manual
 
+scatter(1,1,6,'white','o','filled')
+
 % Scatter simulation run values on plot
-scatter (xData,yData,'k',"+") % scatter the data points in black
-if any(idx,'all') %if any point was interpolated, mark it red
-    scatter (xData(idx),yData(idx), 'r','filled') % scatter the interpolated points in red
-end
+% scatter(xData,yData,5,[0.2 0.2 0.2],".") % scatter the data points in black
+% if any(idx,'all') %if any point was interpolated, mark it red
+%     scatter (xData(idx),yData(idx), 'r','filled') % scatter the interpolated points in red
+% end
 xlabel(append('$',varried_parameters{operateOn(1)},'/',varried_parameters{operateOn(1)},'^*$'),'FontSize',fontSize,'Interpreter','latex') % label the x-axis with the name of the varried parameter
 ylabel(append('$',varried_parameters{operateOn(2)},'/',varried_parameters{operateOn(2)},'^*$'),'FontSize',fontSize,'Interpreter','latex') % label the y-axis with the name of the varried parameter
+
+% Set the axes numbering fontsize to match the axis labels
+ax = gca;
+ax.FontSize = fontSize;
 
 % Draw estimated ellipse
 theta_fun = @(x,y) ([x;y]-[1;1]);
@@ -429,7 +448,10 @@ func = @(x,y) dot((theta_fun(x,y)'*Hessian_temp)',theta_fun(x,y));
 fcontour(func,'--w', 'LevelList', std(idealParam)^2, 'Visible', 'on','tag','Contours');
 
 hold off 
+axis equal
 
+cbh = colorbar; % Create Colorbar
+cbh.TickLabels{end} = ['>', cbh.TickLabels{end}];
 %% Optimal Objective Function
 
 % % Define the objective function as a function handle

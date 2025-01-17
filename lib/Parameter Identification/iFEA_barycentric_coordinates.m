@@ -36,7 +36,7 @@ contact_nodes = unique(F); % Use only nodes on contact surface
 % * trans.U Transformed [mm];trans.V Transformed [mm];trans.W Transformed [mm];
 % * ext.Current Image [#]; (used to determine point range)
 
-[file2,runPath2]=uigetfile('*.csv','Select DIC data');
+[file2,runPath2]=uigetfile('*.csv','Select DIC data',runPath1);
 
 f = fullfile(runPath2, file2);
 [T,p_names,vars_unique, delimiter] = loadTable(f);
@@ -145,7 +145,7 @@ while true
         delete(gcf)
 
         % If the code reaches this point without errors, exit the loop
-        continueRunning = false;
+        break;
 
     catch ME
         % Handle the error
@@ -157,7 +157,7 @@ while true
             disp('Do not close figure before saving mesh nodes. Trying again...');
         else
             % For other errors, you might want to exit the loop
-            continueRunning = false;
+            break;
         end
     end
 end

@@ -5,27 +5,26 @@ clear; close all; clc;
 %%
 % Plot settings
 fontSize=20;
-faceAlpha1=0.8;
-faceAlpha2=1;
-edgeColor=0.25*ones(1,3);
-edgeWidth=1.5;
 markerSize=25;
 markerSize2=50;
 lineWidth=5;
-lineWidth2=2;
-cMap=viridis(20);
+lineWidth2=3;
 
 % Change default axes fonts.
 set(0,'DefaultAxesFontName', 'Times New Roman')
 set(0,'DefaultAxesFontSize',fontSize)
 set(0,'defaulttextinterpreter','latex');
 
-% Define analysis settings
-objectiveWeights = [0.45 0.35 0.2 0.0];
+%%
 
-mesh_path = 'C:\Users\user\OneDrive - Technion\Amit-Dana shared folder\Research\Parameter Identification\Mesh Anlysis\100x100x60 cube\mesh_2.mat';
-% mesh_path = 'C:\Users\user\OneDrive - Technion\Amit-Dana shared folder\Research\Parameter Identification\Mesh Anlysis\70x70x70 cube\coarse3_trueSize.mat';
-load(mesh_path)
+% Define analysis settings
+cylRadius = 25/2;
+cylLength = 34/2; %half for symmetry
+mesh_refinement_factor = 1;
+
+initial_area = cylRadius^2*pi; %mm
+
+loadingOption = 'compression'; % 'compression', 'tension', 'joint'
 
 %% LOAD EXPERIMENTAL DATA
 default_running_folder = getDefaultRunPath();
@@ -52,53 +51,125 @@ switch exp_data_type
         ref_test = test{ref_ind};
 
         expResults = ref_test;
-        force_exp = ref_test.indenter_RB_out.Fz.data;
-        depth_exp = ref_test.indenter_RB_out.z.data;
-        depth_exp(2:end) = -(depth_exp(2:end)-ref_test.MeshGeometry.Indenter.center_of_mass(3));
-        timeMust = depth_exp' / depth_exp(end);
+        force_exp_comp = abs(sum(ref_test.force_out.Rz.data,1));
+        if strcmp(loadingOption,'joint') || strcmp(loadingOption,'compression')
+            depth_exp = min(ref_test.disp_out.uz.data,[],1);
+        else
+            depth_exp = max(ref_test.disp_out.uz.data,[],1);
+        end
+        timeMust = ref_test.disp_out.time;
 
-        n = size(V, 1); % Determine the number of nodes
-        nodeList = false(1, n); % Default nodeList as a logical array of ones
-        nodeList(ref_test.pos_out.ind) = true;
+        % Specimen parameters 
+        cylLength = ref_test.MeshGeometry.Specimen.cylLength; % specimen length (mm)
+        cylRadius = ref_test.MeshGeometry.Specimen.cylRadius; % specimen radius (mm)
+        mesh_refinement_factor = ref_test.MeshGeometry.Specimen.meshf; % Mesh refinement factor, N (scalar/vector)
+        appliedStretch = ref_test.appliedStretch; % (mm)
 
     case 'Experimental Data'
         % IMPORT DIC DATA AS RETRIEVED FROM iFEA_barycentric_coordinates
-        fprintf('\n Select the .mat files of the test results as retrieved from iFEA_barycentric_coordinates.m\n\n******************\n\n');
-        [file,runPath] = uigetfile('*.mat', 'Select Experimental Results Files', 'MultiSelect', 'on');
+        fprintf('\n Select the .txt file of the test results of force and compression\n\n******************\n\n');
+        [file,runPath] = uigetfile('*.txt', 'Select Experimental Results File');
         if runPath == 0
             error('runPath was left unassigned')
         end
-        for i = 1:length(file)
-            load(fullfile(runPath,file{i}))
+        file = fullfile(runPath, file);
+        % Read the entire file into a table
+        data = readtable(file, 'Delimiter', '\t','ConsecutiveDelimitersRule' ,'join',...
+            'VariableNamingRule','preserve');
+
+        % Extract the weight excluding missing snapshots
+        force_data = data.("Force (N)");
+
+        % Extract the depth excluding missing snapshots
+        disp_data = data.("Position (mm)")/2; %fit to half a cylinder
+        %CHANGE TO MATCH EXPERIMENTAL DATA
+        force_exp_comp = abs(force_data') * 1000; % Convert [N] to [mN]
+        timeMust = disp_data / disp_data(end);
+        appliedStretch = abs(disp_data(end));
+        depth_exp = abs(disp_data);
+
+        if strcmp(loadingOption,'joint')
+            [file,runPath]=uigetfile('*.csv','Select uniaxial tension DIC data');
+            if runPath == 0
+                error('runPath was left unassigned')
+            end
+            f = fullfile(runPath, file);
+            [T,p_names,vars_unique, delimiter] = loadTable(f);
+
+            % Arrange data
+            [im] = getSnapshot(T,vars_unique, delimiter); % DIC data structure ogranized according to individual images.
+            [P] = getDataPoints(im,p_names,2); % Clean NaN points and reorganize
+
+            nPoints = numel(P);
+            nImages = numel(im);
+
+            DIC3D.strain   = zeros(nImages, 1, nPoints);
+
+            DIC3D.strain(:,1,:) = reshapeFieldData(P, 'EI', nImages, nPoints);
+            DIC3D.strain(:,2,:) = reshapeFieldData(P, 'EII', nImages, nPoints);
+            DIC3D.strain(:,3,:) = reshapeFieldData(P, 'strain_vonMises', nImages, nPoints);
+
+
+            [file,runPath] = uigetfile('*.txt','Select results data',runPath);
+            if runPath == 0
+                error('runPath was left unassigned')
+            end
+            file = fullfile(runPath, file);
+            % Read the entire file into a table
+            data = readtable(file, 'Delimiter', '\t','ConsecutiveDelimitersRule' ,'join',...
+                'VariableNamingRule','preserve');
+            
+            % Extract the weight excluding missing snapshots
+            force_exp_tens = data{[im.File]+1,"Force (N)"};
+
+            axial_strain = zeros(1,nImages);
+            transverse_strain = axial_strain;
+
+            for i=1:nImages %Retrieve shape of cylinder for each time step
+                transverse_strain(i)=mean(DIC3D.strain(i,2,:),'omitnan'); %normalized transverse stretch
+                axial_strain(i)=real(mean(DIC3D.strain(i,1,:),'omitnan')); %normalized axial stretch
+            end
+
+            axial_stretch = sqrt(2*axial_strain + 1);
+            transverse_stretch = sqrt(2*transverse_strain + 1);
+
+            stress_exp_tens = (force_exp_tens' ./ initial_area) .* axial_stretch * 1000; %kPa
+
         end
-        force_exp = -weight_data'*9.80665 / 4; % Convert [g] to [mN], and account for quarter of problem
-        depth_exp = -indenter_depth;
-        timeMust = depth_exp / depth_exp(end);
 
 end
 
 
 % toleranceObjectiveValue = objectiveWeights*[Ef E_disp E_disp E_disp].^2'; %cutoff range
-toleranceObjectiveValue = 3*1e-2;
+toleranceObjectiveValue = 1e-4;
 % Material Parameters
-mat_type = 'trans iso Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material', 'neo-Hookean fiber reinforced'
+mat_type = 'Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material'
 %Initial material parameter set
-matParameters.c1 = 6;
+matParameters.c1 = 11;
 matParameters.c2 = 0;
-matParameters.c3 = 0;
-matParameters.c4 = 0;
-matParameters.c5 = 300;
-matParameters.lam_max = 1.0001;
+% matParameters.c3 = 0;
+% matParameters.c4 = 0;
+% matParameters.c5 = 0.2;
+% matParameters.lam_max = 1;
 matParameters.k = 1e3;
 par_names=fieldnames(matParameters);
 
-parNamesToVary = {'c1','c5'};
+parNamesToVary = {'c1'};
 [~,parIndicesToVary] = ismember(parNamesToVary,par_names);
 
-%Sphere parameters
-numRefineStepsSphere=2;
-sphereRadius=9.54/2;
-% sphereRadius=8;
+%% Model Parameters
+if strcmp(loadingOption,'joint')
+    loadingOption = 'compression';
+    objectiveStruct.stress_exp_tens = stress_exp_tens;
+    objectiveStruct.axial_stretch = axial_stretch;
+    objectiveStruct.initial_area = initial_area;
+    switch mat_type
+        case 'Mooney-Rivlin'
+            objectiveStruct.analytical = @(x,c1,c2) 2.*(c1+c2.*x.^(-1)).*(x.^2-x.^(-1));
+        case 'Neo-hookean'
+            objectiveStruct.analytical = @(x,c1) 2.*c1.*(x.^2-x.^(-1));
+    end
+end
 
 %% Control Parameters
 runMode = 'external'; % FEBio run mode - 'external', 'internal'
@@ -124,55 +195,17 @@ maxaug=10;
 
 %% Creating model geometry and mesh
 
-% Offset Box
-V(:,3)=V(:,3)-max(V(:,3)); %Box Z location 
-V(:,1) = V(:,1);
-V(:,2) = V(:,2);
-%Convert elements to faces
-[F,~]=element2patch(E,[],'hex8');
-
-%Find boundary faces
-[indFree]=freeBoundaryPatch(F);
-Fb=F(indFree,:);
-
-%Create faceBoundaryMarkers based on normals
-[N]=patchNormal(Fb,V); %N.B. Change of convention changes meaning of front, top etc.
-
-faceBoundaryMarker=zeros(size(Fb,1),1);
-
-faceBoundaryMarker(N(:,1)<-0.5)=1; %Left
-faceBoundaryMarker(N(:,1)>0.5)=2; %Right
-faceBoundaryMarker(N(:,2)<-0.5)=3; %Front
-faceBoundaryMarker(N(:,2)>0.5)=4; %Back
-faceBoundaryMarker(N(:,3)<-0.5)=5; %Bottom
-faceBoundaryMarker(N(:,3)>0.5)=6; %Top
-
-meshStruct.nodes=V;
-meshStruct.facesBoundary=Fb;
-meshStruct.boundaryMarker=faceBoundaryMarker;
-meshStruct.faces=F;
-meshStruct.elements=E;
-meshStruct.elementMaterialID=ones(size(E,1),1);
-meshStruct.faceMaterialID=ones(size(meshStruct.faces,1),1);
-sampleHeight=max(V(:,3))-min(V(:,3));
-sphereDisplacement=depth_exp(end);
+pointSpacing=4/mesh_refinement_factor*ones(1,2); %Desired point spacing between nodes
+[meshStruct] = hexMeshCylinder(cylRadius,cylLength,pointSpacing);
+V = meshStruct.nodes;
+V(:,3) = V(:,3)-min(V(:,3)); % Move center to 0
+meshStruct.nodes = V;
 
 MeshGeometry.Specimen = meshStruct;
 
-%% Creating triangulated sphere surface model
-
-[E2,V2,~]=geoSphere(numRefineStepsSphere,sphereRadius);
-%Offset indentor
-minZ=min(V2(:,3));
-V2(:,3)=V2(:,3)-minZ+max(V(:,3))+contactInitialOffset; %Sphere Z location
-center_of_mass=mean(V2,1);
-MeshGeometry.Indenter.elements = E2;
-MeshGeometry.Indenter.nodes = V2;
-MeshGeometry.Indenter.center_of_mass=mean(V2,1);
-MeshGeometry.Indenter.radius = sphereRadius;
 
 %% Simulation setup and execution
-run_log.metadata.start_time_raw = datetime('now');
+run_log.metadata.start_time_raw = now;
 run_log.metadata.start_time = datestr(datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss Z'));
 full_time = tic;
 nParameters = length(fieldnames(matParameters));
@@ -187,7 +220,9 @@ analysis.matParameters = parValuesIni;
 analysis.MeshGeometry = MeshGeometry;
 analysis.MeshGeometry.Specimen.elementType = elementType;
 analysis.timeMust = timeMust;
-analysis.sphereDisplacement = sphereDisplacement;
+analysis.appliedStretch = appliedStretch;
+analysis.loadingOption = loadingOption;
+
 % Current file name and save path
 modelName = 'tempModel';
 savePath = fullfile(runPath,modelName);
@@ -198,7 +233,7 @@ tic
 % Send (my_param,modelName,savePath) to appropriate
 % GIBBON constructor and execution function
 
-[febio_spec,febioAnalysis,runFlag] = runAnisotropicIndentation(analysis,1);
+[febio_spec,febioAnalysis,runFlag] = runUniaxial(analysis,1);
 
 analysis.runFlag = runFlag;
 [~,analysis.model_name,~] = fileparts(febioAnalysis.run_logname);
@@ -206,61 +241,34 @@ analysis = getLogfileNames(analysis,febio_spec);
 
 if analysis.runFlag == 1
     analysis = loadDataFiles(analysis);
-    F_contact_primary = meshStruct.facesBoundary(meshStruct.boundaryMarker==6,:);
-    contact_nodes = unique(F_contact_primary); %only contact surface nodes
-    contact_nodes_inROI = find(nodeList);
-    exp_symmetry_nodes = find(V(contact_nodes_inROI,1)==0);
-    sim_symmetry_nodes = find(V(contact_nodes,1)==0);
-    
+
     % Access data
-    exp_def_curve_z = expResults.pos_out.z.data(exp_symmetry_nodes,end);
-    sim_def_curve_z = analysis.pos_out.z.data(sim_symmetry_nodes,end);
-    exp_def_curve_y = expResults.pos_out.y.data(exp_symmetry_nodes,end);
-    sim_def_curve_y = analysis.pos_out.y.data(sim_symmetry_nodes,end);
-    exp_def_curve_x = expResults.pos_out.x.data(exp_symmetry_nodes,end);
-    sim_def_curve_x = analysis.pos_out.x.data(sim_symmetry_nodes,end);
-    force_sim = analysis.indenter_RB_out.Fz.data;
+    force_sim = sum(analysis.force_out.Rz.data,1);
     
     hf = cFigure; %Open figure  
-    set(hf,'Units', 'centimeters', 'Position', [0, 0, 40, 25])
-%     title('Indenter Force curves optimisation','FontSize',fontSize);
     % Visualize force-depth curve
     subplot(2,2,[1 3]); hold on;
-    title('Indenter Force curves optimisation','FontSize',fontSize);
-    xlabel('Indenter Depth [\%]','FontSize',fontSize); ylabel('Force [N]','FontSize',fontSize, Interpreter='latex'); hold on;
-    Hf(1)=plot(100*timeMust,abs(force_exp)/1000,'o','lineWidth',lineWidth, 'color', [246, 59, 1]/255, 'MarkerFaceColor', [246, 59, 1]/255);
+    title('Force curves optimisation','FontSize',fontSize);
+    xlabel('Displacement [mm]','FontSize',fontSize); ylabel('Measured Force [N]','FontSize',fontSize, Interpreter='latex'); hold on;
+    Hf(1)=plot(depth_exp,abs(force_exp_comp)/1000,'ko','lineWidth',lineWidth);
     view(2); axis tight;  grid on; axis square; axis manual;
-    Hf(2)=plot(100*timeMust,abs(force_sim)/1000,'o-','lineWidth',lineWidth2,'markerSize',10, 'color', [50, 50, 100]/255);
-    legend(Hf,{'Composite simulation','Homogeneous simulation'},'Location','northwest');
+    Hf(2)=plot(depth_exp,abs(force_sim)/1000,'r.-','lineWidth',lineWidth2,'markerSize',markerSize2);
+    legend(Hf,{'Experiment','Simulation'},'Location','northwest');
     set(gca,'FontSize',fontSize);
-
-    subplot(2,2,2); hold on; 
-    % Visualize deformed surface
-    title('Specimen surface curves optimisation','FontSize',fontSize);
-    xlabel('Y [mm]','FontSize',fontSize); ylabel('Z [mm]','FontSize',fontSize); hold on;
-    Hd(1)=plot(exp_def_curve_y,exp_def_curve_z,'.','lineWidth',lineWidth,'markerSize',markerSize2, 'color', [246, 59, 1]/255);
-    view(2); axis tight;  grid on; axis equal;
-    Hd(2)=plot(sim_def_curve_y,sim_def_curve_z,'.','lineWidth',lineWidth2,'markerSize',markerSize, 'color', [50, 50, 100]/255);
-    legend(Hd,{'Composite simulation','Homogeneous simulation'},'Location','southeast');
-    set(gca,'FontSize',fontSize);
-    ylim([-15,0])
-    xlim([0,50])
     
     if length(parNamesToVary) == 2
-        subplot(2,2,4); hold on; 
+        subplot(2,2,[2 4]); hold on; 
         % Visualize convergence
         title('Objective Function Space','FontSize',fontSize);
         xlabel(parNamesToVary{1},'FontSize',fontSize); ylabel(parNamesToVary{2},'FontSize',fontSize); hold on;
         Hc=scatter(parValuesIni(parIndicesToVary(1)),parValuesIni(parIndicesToVary(2)),markerSize2,'filled');
         Hc.CData = 0;
         xlim([1.5 15]);
-        ylim([0 500]);
-        grid on; colorbar; clim([0 0.2]);
+        ylim([0 10]);
+        grid on; colorbar; clim([0 0.25]);
         set(gca,'FontSize',fontSize);
     end
     drawnow;
-else
-    error('SimulationError:RunFailed', 'The simulation failed to run. Stopping the code execution.');
 end
 
 %% Create structures for optimization
@@ -272,30 +280,19 @@ mat_struct.par_values=parValuesIni; %Parameter values
 mat_struct.par_vary_idx = parIndicesToVary; %Parameter indices
 
 %What should be known to the objective function:
-objectiveStruct.hf = hf; %Plot
 objectiveStruct.Hf=Hf(2); %Force plot
-objectiveStruct.Hd=Hd(2); %Deformation plot
-objectiveStruct.Hc=Hc; %Convergence plot
+if length(parNamesToVary) == 2
+    objectiveStruct.Hc=Hc; %Convergence plot
+else
+    objectiveStruct.Hc=[];
+end
 
-objectiveStruct.sim_symmetry_nodes = sim_symmetry_nodes;
-objectiveStruct.force_exp = force_exp;
-[~,pos_data,~] = getNPosMat(analysis);
-objectiveStruct.pos_data = pos_data;
-objectiveStruct.disp_exp = expResults.disp_out;
-F_contact_primary = meshStruct.facesBoundary(meshStruct.boundaryMarker==6,:);
-objectiveStruct.nodeList = nodeList(unique(F_contact_primary)); %only contact surface nodes
-% objectiveStruct.strain_exp = expResults.strain;
-objectiveStruct.indenterRadius = sphereRadius;
-objectiveStruct.objectiveWeights = objectiveWeights;
+objectiveStruct.force_exp = force_exp_comp;
 objectiveStruct.febioAnalysis=analysis;
-% objectiveStruct.febioFebFileName=febioFebFileName;
 objectiveStruct.mat_struct=mat_struct;
 objectiveStruct.parNormFactors=parValuesToVary; %This will normalize the parameters to ones(size(P))
 objectiveStruct.Pb_struct.xx_c=parValuesToVary; %Parameter constraining centre
-% objectiveStruct.Pb_struct.xxlim=[parValuesToVary(1)/100 parValuesToVary(1)*10;...
-%     parValuesToVary(2)/100     80     ]; %Parameter bounds
-objectiveStruct.Pb_struct.xxlim=[1.5 15;...
-    0     500     ]; %Parameter bounds
+objectiveStruct.Pb_struct.xxlim=[1.5 30]; %Parameter bounds
 
 
 %Optimisation settings
@@ -336,11 +333,12 @@ switch objectiveStruct.method
             'Display',displayTypeIterations,...
             'FinDiffRelStep',1e-2,...
             'DiffMaxChange',0.5);
-        [Pn_opt,OPT_out.resnorm,OPT_out.residual]= lsqnonlin(@(Pn) objectiveFunctionIFEA(Pn,objectiveStruct),Pn,[],[],OPT_options);
+        [Pn_opt,OPT_out.resnorm,OPT_out.residual,~,~,~,OPT_out.jacobian]= lsqnonlin(@(Pn) objectiveFunctionIFEA(Pn,objectiveStruct),Pn,[],[],OPT_options);
 end
 
 %%
 [Fopt,OPT_stats_out]=objectiveFunctionIFEA(Pn_opt,objectiveStruct);
+
 
 %%
 
@@ -349,7 +347,6 @@ function [Fopt,OPT_stats_out]=objectiveFunctionIFEA(Pn,objectiveStruct)
 %%
 
 analysis = objectiveStruct.febioAnalysis;
-objectiveWeights = objectiveStruct.objectiveWeights;
 
 %% Unnormalize and constrain parameters
 
@@ -381,7 +378,7 @@ disp('Done')
 
 %% START FEBio
 
-[febio_spec,febioAnalysis,runFlag] = runAnisotropicIndentation(analysis,0);
+[febio_spec,febioAnalysis,runFlag] = runUniaxial(analysis,0);
 analysis.runFlag = runFlag;
 [~,analysis.model_name,~] = fileparts(febioAnalysis.run_logname);
 analysis = getLogfileNames(analysis,febio_spec);
@@ -394,25 +391,11 @@ if runFlag==1
     analysis = loadDataFiles(analysis);
     
     %Derive Fopt
-    obj_fun_val = calcObjFun_anisotropic_indent(analysis,objectiveStruct);
-    Fforce = obj_fun_val.Ff;
-    Fdisp_x = obj_fun_val.Fu_x;
-    Fdisp_y = obj_fun_val.Fu_y;
-    Fdisp_z = obj_fun_val.Fu_z;
-    FDev = objectiveWeights(1)*Fforce+...
-        objectiveWeights(2)*Fdisp_x+...
-        objectiveWeights(3)*Fdisp_y+...
-        objectiveWeights(4)*Fdisp_z;
-    Fopt=sum((FDev).^2);
+    obj_fun_val = calcObjFun_uniaxial_compr(analysis,objectiveStruct, 1);
+    FDev = obj_fun_val.Ff;
 
     if ~isempty(objectiveStruct.Hf)
-        objectiveStruct.Hf.YData=abs(analysis.indenter_RB_out.Fz.data)/1000; % Kpa*mm^2 = 0.001 N
-        drawnow;
-    end
-    
-    if ~isempty(objectiveStruct.Hd)
-        objectiveStruct.Hd.YData=analysis.pos_out.z.data(objectiveStruct.sim_symmetry_nodes,end); 
-        objectiveStruct.Hd.XData=analysis.pos_out.y.data(objectiveStruct.sim_symmetry_nodes,end); 
+        objectiveStruct.Hf.YData=abs(sum(analysis.force_out.Rz.data,1))/1000; % Kpa*mm^2 = 0.001 N
         drawnow;
     end
 
@@ -423,14 +406,32 @@ if runFlag==1
         drawnow;
     end
 
-    exportgraphics(objectiveStruct.hf,"C:\Users\user\Downloads\SamplePlot.gif","Append",true)
-
-
     switch objectiveStruct.method
         case 1
             Fopt=sum((FDev).^2); %Sum of squared differences
         case 2
             Fopt=FDev(:);%(stressDev).^2; %Squared differences
+    end
+
+    if isfield(objectiveStruct,'analytical')
+        stress_exp_tens = objectiveStruct.stress_exp_tens;
+        axial_stretch =objectiveStruct.axial_stretch;
+        analytical = objectiveStruct.analytical;
+
+        parValuesCell = num2cell(parValuesNow(1:(end-1)));
+        stress_res = analytical(axial_stretch,parValuesCell{:})-stress_exp_tens;
+        stress_res_mag = abs(stress_res);
+        stress_exp_mag = max(abs(stress_exp_tens));
+        squared_normalized_stress_res = (stress_res_mag ./ stress_exp_mag).^2;
+        squared_normalized_stress_res(isnan(squared_normalized_stress_res))=0;
+
+        FDev = [FDev/length(FDev),squared_normalized_stress_res/length(squared_normalized_stress_res)];
+        switch objectiveStruct.method
+            case 1
+                Fopt=sum((FDev).^2); %Sum of squared differences
+            case 2
+                Fopt=FDev(:);%(stressDev).^2; %Squared differences
+        end
     end
 
     OPT_stats_out.obj_fun_val=obj_fun_val;
@@ -448,4 +449,9 @@ else %Output NaN
     OPT_stats_out=[];
 end
 
+end
+
+function pos = reshapeFieldData(P, fieldName, nImages, nPoints)
+% Extract the field values from the structure array and reshape
+pos = reshape([P.(fieldName)], nImages, nPoints);
 end

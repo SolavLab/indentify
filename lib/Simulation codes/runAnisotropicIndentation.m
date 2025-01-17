@@ -85,11 +85,8 @@ switch my_param.mat_type
         k=0.5.*(c1+ksi)*k_factor; %Bulk modulus
     case 'neo-Hookean fiber reinforced'
         c1=my_param.matParameters(1); %Shear-modulus-like parameter
-        ksi=my_param.matParameters(2); %Fiber "modulus"
-        alphaPar=my_param.matParameters(3);
-        beta=my_param.matParameters(4);
-        k_factor=my_param.matParameters(5); %Bulk modulus factor
-        k=0.5.*(c1+ksi)*k_factor; %Bulk modulus
+        mu=my_param.matParameters(2); %Fiber "modulus"
+        k=my_param.matParameters(3); %Bulk modulus
 end
 
 %% FEA control settings
@@ -244,10 +241,8 @@ switch my_param.mat_type
         febio_spec.Material.material{1}.solid{1}.k=k;
 
         %The passive fiber component
-        febio_spec.Material.material{1}.solid{2}.ATTR.type='fiber-exp-pow';
-        febio_spec.Material.material{1}.solid{2}.ksi=ksi;
-        febio_spec.Material.material{1}.solid{2}.alpha=alphaPar;
-        febio_spec.Material.material{1}.solid{2}.beta=beta;
+        febio_spec.Material.material{1}.solid{2}.ATTR.type='fiber-NH';
+        febio_spec.Material.material{1}.solid{2}.mu=mu;
         febio_spec.Material.material{1}.solid{2}.fiber.ATTR.type='vector';
         febio_spec.Material.material{1}.solid{2}.fiber.VAL=[0 1 0];
 end

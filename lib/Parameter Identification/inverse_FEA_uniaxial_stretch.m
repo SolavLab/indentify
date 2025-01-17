@@ -21,7 +21,7 @@ set(0,'DefaultAxesFontSize',fontSize)
 set(0,'defaulttextinterpreter','latex');
 
 % Define analysis settings
-objectiveWeights = [0.95 0.05];
+objectiveWeights = [1 0];
 
 
 loadingOption = 'compression'; % 'compression', 'tension', 'joint'
@@ -319,6 +319,11 @@ function [Fopt,OPT_stats_out]=objectiveFunctionIFEA(Pn,objectiveStruct)
 
 analysis = objectiveStruct.febioAnalysis;
 objectiveWeights = objectiveStruct.objectiveWeights;
+if isequal(objectiveWeights, [1, 0])
+    useForceOnly = true;
+else
+    useForceOnly = false;
+end
 
 %% Unnormalize and constrain parameters
 
@@ -363,7 +368,7 @@ if runFlag==1
     analysis = loadDataFiles(analysis);
     
     %Derive Fopt
-    obj_fun_val = calcObjFun_uniaxial_compr(analysis,objectiveStruct);
+    obj_fun_val = calcObjFun_uniaxial_compr(analysis,objectiveStruct, useForceOnly);
     Fforce = obj_fun_val.Ff;
     Fdisp_r = obj_fun_val.Fu_r;
     FDev = objectiveWeights(1)*Fforce+...

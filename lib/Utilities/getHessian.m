@@ -11,7 +11,7 @@ function [H] = getHessian(varargin)
 
 % n: truncation error order O(h^n) (up to 8)
 
-%target_ind: this is the position of the parameter point within the objective function space
+% target_ind: this is the position of the parameter point within the objective function space
 
 % leap: distances between adjacent data points for calculation differences
 
@@ -21,14 +21,18 @@ switch nargin
     case 2
         X=varargin{1};
         Z=varargin{2};
-        target_ind=ceil(size(X)/2); %pick center point in space
+        sizeX = size(X);
+        sizeX = sizeX(sizeX>1);
+        target_ind=ceil(sizeX/2); %pick center point in space
         n=2; %default truncation error
         leap=1; %default leap
     case 3
         X=varargin{1};
         Z=varargin{2};
         n=varargin{3};
-        target_ind=ceil(size(X)/2);
+        sizeX = size(X);
+        sizeX = sizeX(sizeX>1);
+        target_ind=ceil(sizeX/2);
         leap=1;
     case 4
         X=varargin{1};
