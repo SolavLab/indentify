@@ -283,8 +283,8 @@ for dir_ind = 1:numel(dir_name_carray)
     Hx = getHessian(X_norm,objectiveValues.Fu_x.sumOfSquares,n_accuracy);
     Hy = getHessian(X_norm,objectiveValues.Fu_y.sumOfSquares,n_accuracy);
     Hz = getHessian(X_norm,objectiveValues.Fu_z.sumOfSquares,n_accuracy);
-    Ef = 0.07; %force measurement error (normalized)
-    E_disp = 0.07; % displacement measurement error (normalized)
+    Ef = 0.05; %force measurement error (normalized)
+    E_disp = 0.05; % displacement measurement error (normalized)
     p=zeros(num_dim,length(fieldnames(objectiveValues))); %initialize best objective function data matrix
     err=zeros(num_dim,1);
     std=err;
@@ -297,7 +297,7 @@ for dir_ind = 1:numel(dir_name_carray)
         % Define the constraint function as a function handle
         constrfun = @(x) deal(-subsref(inv(x(1)*Hf + x(2)*Hx + x(3)*Hy + x(4)*Hz),s), x(1) + x(2) + x(3) + x(4) - 1);
         % Define an initial guess for the weights
-        x0 = [0.1 0.4 0.4 0.1];
+        x0 = [0.5 0.2 0.2 0.1];
         % Define some options for the solver
         options = optimoptions('fmincon','Display','iter');
         % Define the lower and upper bounds for the weights
@@ -337,7 +337,7 @@ operateOn = [1,2]; % choose the dimensions that the local hessian will operate o
 idealParam = 1; % choose objective function shape to use
 idealP = p(idealParam,:);
 OF = idealP(1)*objectiveValues.Ff.sumOfSquares+idealP(2)*objectiveValues.Fu_x.sumOfSquares+idealP(3)*objectiveValues.Fu_y.sumOfSquares+idealP(4)*objectiveValues.Fu_z.sumOfSquares;
-OF = 0.55*objectiveValues.Ff.sumOfSquares+0.2*objectiveValues.Fu_x.sumOfSquares+0.15*objectiveValues.Fu_y.sumOfSquares+0.05*objectiveValues.Fu_z.sumOfSquares;
+OF = 0.5*objectiveValues.Ff.sumOfSquares+0.1*objectiveValues.Fu_x.sumOfSquares+0.2*objectiveValues.Fu_y.sumOfSquares+0.00*objectiveValues.Fu_z.sumOfSquares;
 % OF = 0*objectiveValues.Ff.sumOfSquares+0.33*objectiveValues.Fu_x.sumOfSquares+0.33*objectiveValues.Fu_y.sumOfSquares+0.34*objectiveValues.Fu_z.sumOfSquares;
 % OF = objectiveValues.Ff.sumOfSquares;
 
@@ -395,7 +395,7 @@ shading interp % use interpolated shading
 xlabel(varried_parameters{operateOn(1)}, 'FontSize', fontSize) % label the x-axis with the name of the varried parameter
 ylabel(varried_parameters{operateOn(2)}, 'FontSize', fontSize) % label the y-axis with the name of the varried parameter
 
-h = figure('Units', 'centimeters', 'Position', [0, 0, 9, 8]); % create another figure
+h = figure('Units', 'centimeters', 'Position', [0, 0, 14, 6]); % create another figure
 % Define countour lines
 flatFlag = 0;
 stdDeviation = std(idealParam)^2;
@@ -410,9 +410,9 @@ min_Z = min(local_Z, [], 'all');
 
 contour_lines = linspace(min_Z, max_Z, numCurves);
 [~, std_idx] = min(abs(contour_lines - stdDeviation)); % Find the index of the value closest to S
-[~, cont_idx] = min(abs(local_Z - 2*stdDeviation),[],'all'); % Find the index of the point closest to S
+[~, cont_idx] = min(abs(local_Z - stdDeviation),[],'all'); % Find the index of the point closest to S
 contour_lines(std_idx) = stdDeviation;
-contour_lines(std_idx:end) = stdDeviation:(2*abs(grad_temp(cont_idx))):(stdDeviation+(numCurves-std_idx)*2*abs(grad_temp(cont_idx)));
+contour_lines(std_idx:end) = stdDeviation:(3*abs(grad_temp(cont_idx))):(stdDeviation+(numCurves-std_idx)*3*abs(grad_temp(cont_idx)));
 contour_lines(1:std_idx-1) = linspace(min_Z,stdDeviation,std_idx-1);
 if std_idx==1 contour_lines=[0,contour_lines]; std_idx=2; numCurves=numCurves+1; end
 contour_lines = [contour_lines, logspace(log10(contour_lines(end)),log10(max_Z),10)];
@@ -421,7 +421,7 @@ contourf(xData,yData,local_Z,contour_lines) %draw 2d contours with data points
 % global_max = max([objectiveValues.Ff.t_5,objectiveValues.Fu_x.t_5,objectiveValues.Fu_y.t_5,objectiveValues.Fu_z.t_5],[],'all');
 % clim([0, 0.5*global_max]) % uncomment this line to set the color limits
 %Optimize colorbar:
-clim([0, (stdDeviation+(numCurves-std_idx)*2*abs(grad_temp(cont_idx)))])
+clim([0, (stdDeviation+(numCurves-std_idx)*3.2*abs(grad_temp(cont_idx)))])
 
 
 hold on 

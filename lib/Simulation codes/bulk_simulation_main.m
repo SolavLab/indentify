@@ -4,15 +4,16 @@ clear; close all; clc;
 %% USER-DEFINED SETTINGS
 
 % Material Parameters
-mat_type = 'Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material', 'neo-Hookean fiber reinforced'
+mat_type = 'trans iso Mooney-Rivlin'; % 'trans iso Mooney-Rivlin','trans iso Veronda-Westmann','muscle material','tendon material','ogden material', 'neo-Hookean fiber reinforced'
 leftSide = linspace(1, 6.535, 15 + 1); rightSide = linspace(6.535, 21, 15 + 1);
-matParameters.c1 = [leftSide(1:end-1), rightSide]; % Range of first material parameter (scalar/vector)
+% matParameters.c1 = [leftSide(1:end-1), rightSide]; % Range of first material parameter (scalar/vector)
+matParameters.c1 = linspace(0.7*12.16,1.3*12.16,9);
 matParameters.c2 = linspace(0,0,1); % Range of second material parameter (scalar/vector)
-% matParameters.c3 = linspace(0,0,1); % Range of third material parameter (scalar/vector)
-% matParameters.c4 = linspace(0,0,1); % Range of fourth material parameter (scalar/vector)
-% matParameters.c5 = linspace(330.26*0.25,330.26*1.75,25); % Range of fifth material parameter (scalar/vector)
+matParameters.c3 = linspace(0,0,1); % Range of third material parameter (scalar/vector)
+matParameters.c4 = linspace(0,0,1); % Range of fourth material parameter (scalar/vector)
+matParameters.c5 = linspace(120*0.25,120*1.75,9); % Range of fifth material parameter (scalar/vector)
 % matParameters.P6 = linspace(1,1.1,1);
-% matParameters.lam_max = 1;
+matParameters.lam_max = 1;
 matParameters.k = 1e3; % Range of bulk material parameter multiplier (scalar/vector)
 
 % Specimen geometry

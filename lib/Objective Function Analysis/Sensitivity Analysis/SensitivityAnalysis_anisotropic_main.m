@@ -283,8 +283,8 @@ for dir_ind = 1:numel(dir_name_carray)
     Hx = getHessian(X_norm,objectiveValues.Fu_x.sumOfSquares,n_accuracy);
     Hy = getHessian(X_norm,objectiveValues.Fu_y.sumOfSquares,n_accuracy);
     Hz = getHessian(X_norm,objectiveValues.Fu_z.sumOfSquares,n_accuracy);
-    Ef = 0.07; %force measurement error (normalized)
-    E_disp = 0.07; % displacement measurement error (normalized)
+    Ef = 0.05; %force measurement error (normalized)
+    E_disp = 0.05; % displacement measurement error (normalized)
     p=zeros(num_dim,length(fieldnames(objectiveValues))); %initialize best objective function data matrix
     err=zeros(num_dim,1);
     std=err;
@@ -322,7 +322,6 @@ for dir_ind = 1:numel(dir_name_carray)
         fprintf('Error of "%s" is ±%d (±%.2f%%)\n',run_log.metadata.varried_parameters{i},err(i),100*err(i));
         fprintf('Where the optimal objective function uses %.2f*Ff+%.2f*Fu_x+%.2f*Fu_y+%.2f*Fu_z\nAnd the standard deviation is S=%.2f\n\n',p(i,:),std(i));
     end
-
 
 end
 
